@@ -1,6 +1,6 @@
 import time
 import uuid
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 from app.models import (
     CognitiveStateEnum,
     CognitiveStateResult,
@@ -164,3 +164,107 @@ class TutorEngine:
         self.last_intervention_time = now
         self.triggered_interventions.append(intervention)
         return intervention
+
+    def generate_dual_mode_reply(
+        self,
+        mode: str,
+        topic: str,
+        user_message: str,
+        chat_history: Optional[List[Dict[str, Any]]] = None,
+        user_code: str = ""
+    ) -> Dict[str, Any]:
+        """
+        Generates contextual conversational responses for Dual-Mode AI Tutoring:
+        1. Mode == 'TEACHER': AI acts as Expert Educator (scaffolding, physical analogies, comprehension quiz).
+        2. Mode == 'STUDENT': AI acts as Inquisitive Learner (Feynman Technique, spots jargon, tests edge cases).
+        """
+        msg_lower = user_message.lower().strip()
+        history = chat_history or []
+
+        if mode.upper() == "STUDENT":
+            # =========================================================================
+            # Mode B: Feynman Technique Student Persona ("Sam")
+            # The User is the teacher. The AI is an inquisitive, curious learner.
+            # =========================================================================
+            if any(term in msg_lower for term in ["hash", "map", "dict", "lookup"]):
+                reply = (
+                    "Ooh! So you're saying a hash map lets us find things instantly without looking through every single box one-by-one? "
+                    "Wait, how does the computer actually know which box to check without searching? Could you explain that part simply, like I'm 10?"
+                )
+                quiz = "Can you give me an everyday real-world example of how that lookup works?"
+            elif any(term in msg_lower for term in ["o(n)", "o(1)", "complexity", "big o", "linear", "quadratic"]):
+                reply = (
+                    "You mentioned Big-O! I hear that term a lot in computer science, but I always get confused. "
+                    "Why is O(N) so much better than O(N²)? What happens to our program if the user enters 1 million items?"
+                )
+                quiz = "If we have 1,000 items, how many steps does each one take?"
+            elif any(term in msg_lower for term in ["duplicate", "edge case", "negative", "empty", "zero"]):
+                reply = (
+                    "That's a clever catch! But wait, what if the input list has two identical numbers, like [3, 3] and the target is 6? "
+                    "Does your code accidentally use the same number twice, or will it return two different indices?"
+                )
+                quiz = "How does your logic make sure it doesn't match an element with itself?"
+            elif len(msg_lower.split()) > 12:
+                reply = (
+                    "I'm following your explanation! You explained that really clearly. "
+                    "Let me try to repeat it back to you to make sure I understand: We scan each number once, and for each number, "
+                    "we check if its partner (target minus current) has already been stored. Is that the core idea?"
+                )
+                quiz = "Did I get that right, or did I miss any subtle edge case?"
+            else:
+                reply = (
+                    f"I'm really excited to learn about {topic} from you! "
+                    "Could you walk me through the big picture first? What is the main problem we are trying to solve, and why does a naive brute-force approach get too slow?"
+                )
+                quiz = "Teach me the first step you would take!"
+
+            return {
+                "sender": "ai",
+                "author_name": "Sam (Inquisitive Learner)",
+                "mode": "STUDENT",
+                "text": reply,
+                "followup_prompt": quiz,
+                "persona_note": "Feynman Technique Active: Explain in simple terms to test your mastery."
+            }
+
+        else:
+            # =========================================================================
+            # Mode A: Teacher Bot Persona (Master Educator & Socratic Mentor)
+            # AI is the expert guide, scaffolding learning step-by-step.
+            # =========================================================================
+            if any(term in msg_lower for term in ["how", "explain", "what is", "start", "help"]):
+                reply = (
+                    f"Let's break down {topic} together step-by-step.\n\n"
+                    "**Intuitive Analogy**: Imagine you're at a coat check with 1,000 coats. Instead of walking down the line checking each ticket one by one (O(N²)), "
+                    "you have an organized index drawer where every coat number points directly to a locker (O(1) lookup).\n\n"
+                    "For Two Sum: As you visit each number `x`, you only need to ask: *'Have I already seen (target - x)?'*"
+                )
+                quiz = "Comprehension Check: If `target = 9` and the current number is `2`, what specific value are we checking the drawer for?"
+            elif any(term in msg_lower for term in ["7", "seven", "target - num", "complement"]):
+                reply = (
+                    "Spot on! We are looking for `7` (9 - 2). "
+                    "If `7` isn't in our hash table yet, we store `2` mapped to its index `0`, and move forward. "
+                    "When we later reach `7`, `2` will be waiting for us!"
+                )
+                quiz = "Now consider: What would happen if we checked for the complement AFTER storing the current number?"
+            elif any(term in msg_lower for term in ["duplicate", "overwrite", "same index"]):
+                reply = (
+                    "Excellent analytical thinking! If you stored the number before checking, a target of `6` with number `3` "
+                    "might falsely match with itself (returning `[0, 0]`). Checking before storing guarantees distinct indices."
+                )
+                quiz = "Ready to test the code implementation, or would you like to review edge cases?"
+            else:
+                reply = (
+                    "Great question. Let's analyze this pedagogically. In algorithmic problem solving, the bottleneck is almost always redundant work. "
+                    "By trading a small amount of memory (storing seen elements in a hash map), we eliminate redundant scans completely."
+                )
+                quiz = "What is the time and space complexity of this single-pass hash approach?"
+
+            return {
+                "sender": "ai",
+                "author_name": "FocusMind Master Educator",
+                "mode": "TEACHER",
+                "text": reply,
+                "followup_prompt": quiz,
+                "persona_note": "Socratic Scaffolding: Guiding you to self-discovered mastery."
+            }

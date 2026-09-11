@@ -5,12 +5,15 @@ import DeepFocusOrb from './DeepFocusOrb';
 import CodingWorkspace from './CodingWorkspace';
 import EmergencySleepModal from './EmergencySleepModal';
 import ZoomClassroomModal from './ZoomClassroomModal';
+import MultiDeviceSyncModal from './MultiDeviceSyncModal';
 import { useEmotionEngine } from '../hooks/useEmotionEngine';
 import { usePomodoroMachine } from '../hooks/usePomodoroMachine';
 
 export default function FocusPlatform() {
   const [isEmergencyAlarmOpen, setIsEmergencyAlarmOpen] = useState(false);
   const [isZoomModalOpen, setIsZoomModalOpen] = useState(false);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [currentRoomCode, setCurrentRoomCode] = useState('FM-1001');
 
   // Background pomodoro rhythm & gamification
   const pomodoro = usePomodoroMachine();
@@ -94,6 +97,7 @@ export default function FocusPlatform() {
           streakMultiplier={emotion.streakMultiplier}
           isSleepingAlertActive={emotion.detectedState === 'SLEEPING'}
           onOpenZoomModal={() => setIsZoomModalOpen(true)}
+          onOpenSyncModal={() => setIsSyncModalOpen(true)}
         />
 
         {/* Center: Ambient "Deep Focus" Space (Zero countdown timers) */}
@@ -121,6 +125,14 @@ export default function FocusPlatform() {
       <ZoomClassroomModal
         isOpen={isZoomModalOpen}
         onClose={() => setIsZoomModalOpen(false)}
+      />
+
+      {/* Multi-Device Synchronization & Pairing Modal */}
+      <MultiDeviceSyncModal
+        isOpen={isSyncModalOpen}
+        onClose={() => setIsSyncModalOpen(false)}
+        roomCode={currentRoomCode}
+        onRoomChange={(code) => setCurrentRoomCode(code)}
       />
 
       {/* 1-Minute Continuous Drowsiness Alert Banner */}

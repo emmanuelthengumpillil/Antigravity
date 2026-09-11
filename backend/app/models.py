@@ -2,6 +2,7 @@ from enum import Enum
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 import time
+import uuid
 
 
 class CognitiveStateEnum(str, Enum):
@@ -220,5 +221,68 @@ class PromoteDeviceRequest(BaseModel):
     device_id: str
     new_role: str  # "Host", "Co-Host", "Participant"
     admit_from_waiting_room: bool = False
+
+
+# Cross-Device Sync & Dual-Mode AI Tutoring Models
+class RoomDevice(BaseModel):
+    device_id: str
+    device_name: str
+    device_type: str = "Desktop"  # "Desktop", "Tablet", "Mobile", "Display"
+    joined_at: float = Field(default_factory=lambda: time.time())
+    is_host: bool = False
+
+
+class RoomChatMessage(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4())[:8])
+    sender: str = "user"  # "user", "ai", "system"
+    author_name: str = "You"
+    mode: str = "TEACHER"  # "TEACHER" | "STUDENT"
+    text: str
+    hint: bool = False
+    timestamp: float = Field(default_factory=lambda: time.time())
+    device_id: Optional[str] = None
+
+
+class RoomSession(BaseModel):
+    room_code: str  # e.g. "FM-8421"
+    session_id: str
+    created_at: float = Field(default_factory=lambda: time.time())
+    active_module_id: str = "mod_two_sum"
+    active_mode: str = "TEACHER"  # "TEACHER" (Expert Educator) | "STUDENT" (Feynman Technique)
+    current_topic: str = "Two Sum & Hash Tables"
+    connected_devices: List[RoomDevice] = Field(default_factory=list)
+    chat_history: List[RoomChatMessage] = Field(default_factory=list)
+    shared_code: str = ""
+    qr_code_svg: Optional[str] = None
+
+
+class CreateRoomRequest(BaseModel):
+    device_name: str = "Primary Desktop"
+    device_type: str = "Desktop"
+    initial_topic: Optional[str] = "Two Sum & Hash Tables"
+    active_mode: Optional[str] = "TEACHER"
+
+
+class JoinRoomRequest(BaseModel):
+    room_code: str
+    device_name: str = "Secondary Device"
+    device_type: str = "Tablet"  # "Tablet", "Mobile", "Laptop"
+
+
+class SendRoomMessageRequest(BaseModel):
+    device_id: Optional[str] = None
+    author_name: str = "You"
+    text: str
+    user_code: Optional[str] = None
+
+
+class ToggleRoomModeRequest(BaseModel):
+    new_mode: str  # "TEACHER" | "STUDENT"
+    device_id: Optional[str] = None
+
+
+class UpdateRoomCodeRequest(BaseModel):
+    code_content: str
+    device_id: Optional[str] = None
 
 

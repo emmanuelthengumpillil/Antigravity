@@ -681,30 +681,94 @@ console.log(twoSum([2, 7, 11, 15], 9));
     }
   }
 
-  // Socratic AI Tutor
+  // =========================================================================
+  // Dual-Mode AI Bot System (Teacher Bot vs Feynman Student Bot)
+  // =========================================================================
+  let tutorCurrentMode = 'TEACHER'; // 'TEACHER' | 'STUDENT'
   const tutorHeader = document.getElementById('tutor-header');
   const tutorContent = document.getElementById('tutor-content');
-  const tutorChevron = document.getElementById('tutor-chevron');
   const tutorChat = document.getElementById('tutor-chat-history');
   const tutorInput = document.getElementById('tutor-input');
   const btnTutorSend = document.getElementById('btn-tutor-send');
-  let isTutorOpen = true;
+  const btnModeTeacher = document.getElementById('btn-mode-teacher');
+  const btnModeStudent = document.getElementById('btn-mode-student');
+  const tutorModeTitle = document.getElementById('tutor-mode-title');
+  const tutorPersonaSubtitle = document.getElementById('tutor-persona-subtitle');
+  const tutorBotIcon = document.getElementById('tutor-bot-icon');
+  const tutorBotIconContainer = document.getElementById('tutor-bot-icon-container');
 
-  if (tutorHeader && tutorContent) {
-    tutorHeader.addEventListener('click', () => {
-      isTutorOpen = !isTutorOpen;
-      tutorContent.classList.toggle('hidden');
-      if (tutorChevron) {
-        tutorChevron.setAttribute('data-lucide', isTutorOpen ? 'chevron-down' : 'chevron-up');
-        if (window.lucide) window.lucide.createIcons();
+  function updateTutorModeUI(newMode, notifyServer = true) {
+    tutorCurrentMode = newMode;
+    if (newMode === 'TEACHER') {
+      if (btnModeTeacher) {
+        btnModeTeacher.className = 'px-2 py-1 rounded-md text-[10px] font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 transition-all flex items-center space-x-1';
+      }
+      if (btnModeStudent) {
+        btnModeStudent.className = 'px-2 py-1 rounded-md text-[10px] font-mono font-medium text-white/40 hover:text-white transition-all flex items-center space-x-1';
+      }
+      if (tutorModeTitle) tutorModeTitle.textContent = 'Teacher Bot Mode';
+      if (tutorPersonaSubtitle) tutorPersonaSubtitle.textContent = 'Expert Socratic Educator';
+      if (tutorBotIcon) tutorBotIcon.setAttribute('data-lucide', 'graduation-cap');
+      if (tutorBotIconContainer) tutorBotIconContainer.className = 'w-6 h-6 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center border border-cyan-500/30';
+      if (tutorInput) tutorInput.placeholder = 'Ask a question or request step-by-step guidance...';
+    } else {
+      if (btnModeStudent) {
+        btnModeStudent.className = 'px-2 py-1 rounded-md text-[10px] font-mono font-bold bg-indigo-500/25 text-indigo-300 border border-indigo-500/40 transition-all flex items-center space-x-1';
+      }
+      if (btnModeTeacher) {
+        btnModeTeacher.className = 'px-2 py-1 rounded-md text-[10px] font-mono font-medium text-white/40 hover:text-white transition-all flex items-center space-x-1';
+      }
+      if (tutorModeTitle) tutorModeTitle.textContent = 'Student Bot Mode';
+      if (tutorPersonaSubtitle) tutorPersonaSubtitle.textContent = 'Feynman Learner ("Sam")';
+      if (tutorBotIcon) tutorBotIcon.setAttribute('data-lucide', 'brain');
+      if (tutorBotIconContainer) tutorBotIconContainer.className = 'w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30';
+      if (tutorInput) tutorInput.placeholder = 'Explain this concept to Sam as if they are 10...';
+    }
+    if (window.lucide) window.lucide.createIcons();
+
+    if (notifyServer && activeRoomCode) {
+      fetch(`/api/rooms/${activeRoomCode}/mode`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: newMode })
+      }).catch(e => console.log('Room mode sync offline:', e));
+    }
+  }
+
+  if (btnModeTeacher) {
+    btnModeTeacher.addEventListener('click', () => {
+      if (tutorCurrentMode !== 'TEACHER') {
+        updateTutorModeUI('TEACHER', true);
+        addSystemNotice("Switched to Teacher Mode: Ask doubts, get step-by-step breakdowns, and comprehension quizzes.");
       }
     });
   }
 
-  function addTutorMessage(text, isHint = false) {
+  if (btnModeStudent) {
+    btnModeStudent.addEventListener('click', () => {
+      if (tutorCurrentMode !== 'STUDENT') {
+        updateTutorModeUI('STUDENT', true);
+        addSystemNotice("Switched to Feynman Student Mode: You are the instructor now. Teach 'Sam' in simple terms!");
+      }
+    });
+  }
+
+  function addSystemNotice(text) {
     if (!tutorChat) return;
     const msg = document.createElement('div');
-    if (isHint) {
+    msg.className = 'p-2 rounded-xl bg-indigo-950/20 border border-indigo-500/20 text-indigo-300/80 text-[11px] font-mono text-center animate-fadeIn';
+    msg.innerHTML = `<span>⚙️ ${text}</span>`;
+    tutorChat.appendChild(msg);
+    tutorChat.scrollTop = tutorChat.scrollHeight;
+  }
+
+  function addTutorMessage(text, isHint = false, role = 'assistant') {
+    if (!tutorChat) return;
+    const msg = document.createElement('div');
+    if (role === 'user') {
+      msg.className = 'p-2.5 rounded-xl bg-cyan-950/30 border border-cyan-500/30 text-cyan-200 ml-6 text-right leading-relaxed animate-fadeIn';
+      msg.innerHTML = `<p>${text}</p>`;
+    } else if (isHint) {
       msg.className = 'p-2.5 rounded-xl bg-amber-950/20 border border-amber-500/30 text-amber-200/90 leading-relaxed animate-fadeIn';
       msg.innerHTML = `
         <div class="flex items-center space-x-1 text-[10px] text-amber-400 font-mono mb-1 font-semibold">
@@ -714,34 +778,71 @@ console.log(twoSum([2, 7, 11, 15], 9));
         <p>${text}</p>
       `;
     } else {
-      msg.className = 'p-2.5 rounded-xl bg-white/5 border border-white/10 text-white/80 leading-relaxed animate-fadeIn';
-      msg.innerHTML = `<p>${text}</p>`;
+      const isSam = tutorCurrentMode === 'STUDENT';
+      msg.className = isSam
+        ? 'p-2.5 rounded-xl bg-indigo-950/30 border border-indigo-500/30 text-indigo-200/90 leading-relaxed animate-fadeIn'
+        : 'p-2.5 rounded-xl bg-white/5 border border-white/10 text-white/80 leading-relaxed animate-fadeIn';
+      
+      const badge = isSam
+        ? '<div class="text-[10px] text-indigo-400 font-mono mb-1 font-bold">🧠 Sam (Learner):</div>'
+        : '<div class="text-[10px] text-cyan-400 font-mono mb-1 font-bold">🎓 Teacher Bot:</div>';
+
+      msg.innerHTML = `${badge}<p class="whitespace-pre-wrap">${text}</p>`;
     }
     tutorChat.appendChild(msg);
     tutorChat.scrollTop = tutorChat.scrollHeight;
     if (window.lucide) window.lucide.createIcons();
   }
 
-  function handleTutorSend() {
+  async function handleTutorSend() {
     if (!tutorInput || !tutorInput.value.trim()) return;
     const q = tutorInput.value.trim();
     tutorInput.value = '';
 
-    const userMsg = document.createElement('div');
-    userMsg.className = 'p-2.5 rounded-xl bg-cyan-950/30 border border-cyan-500/30 text-cyan-200 ml-6 text-right leading-relaxed animate-fadeIn';
-    userMsg.innerHTML = `<p>${q}</p>`;
-    tutorChat.appendChild(userMsg);
-    tutorChat.scrollTop = tutorChat.scrollHeight;
+    addTutorMessage(q, false, 'user');
 
+    // Attempt to call backend room sync / dual mode API
+    try {
+      if (activeRoomCode) {
+        const res = await fetch(`/api/rooms/${activeRoomCode}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: q,
+            sender_name: 'You (Host)',
+            code_context: editorEl ? editorEl.value : ''
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          addTutorMessage(data.reply);
+          return;
+        }
+      }
+    } catch (e) {
+      console.log('Room API fallback to local:', e);
+    }
+
+    // Local heuristic fallback for offline or standalone mode
     setTimeout(() => {
-      let reply = "Good thought. What data structure would give you O(1) instant recall of numbers you've already traversed?";
-      if (q.toLowerCase().includes('hash') || q.toLowerCase().includes('map') || q.toLowerCase().includes('dict')) {
-        reply = "Exactly right! Storing `target - num` allows you to solve it in a single linear scan.";
-      } else if (q.toLowerCase().includes('hint') || q.toLowerCase().includes('stuck')) {
-        reply = "Try writing out the first 2 iterations by hand: for num=2, target-2 is 7. Where can you save 2 for fast lookup?";
+      let reply = '';
+      if (tutorCurrentMode === 'STUDENT') {
+        if (q.toLowerCase().includes('hash') || q.toLowerCase().includes('dictionary')) {
+          reply = "Wait, you mentioned a hash map / dictionary—could you explain that like I'm 10? Is it like numbered mailboxes or a library index card?";
+        } else {
+          reply = "I think I follow, but what if the numbers list is totally empty, or what if two numbers are the same? Does your idea still hold up?";
+        }
+      } else {
+        if (q.toLowerCase().includes('hash') || q.toLowerCase().includes('map') || q.toLowerCase().includes('dict')) {
+          reply = "Spot on! Think of the Hash Table like a cloakroom ticket: when you check `target - num`, you immediately know if the matching partner arrived earlier in O(1) time.";
+        } else if (q.toLowerCase().includes('hint') || q.toLowerCase().includes('stuck')) {
+          reply = "Let's break it into smaller steps: 1) What value do you need to pair with nums[i] to reach target? 2) Can you store what you've seen so far in a dictionary?";
+        } else {
+          reply = "Great question! Let's scaffold this: If you inspect each element, what piece of information would instantly tell you whether you've already found the solution?";
+        }
       }
       addTutorMessage(reply);
-    }, 600);
+    }, 500);
   }
 
   if (btnTutorSend) btnTutorSend.addEventListener('click', handleTutorSend);
@@ -1274,6 +1375,264 @@ console.log(twoSum([2, 7, 11, 15], 9));
     });
   }
 
+  // =========================================================================
+  // Multi-Device Synchronization & Pairing (QR & Room Sync)
+  // =========================================================================
+  let activeRoomCode = localStorage.getItem('focusmind_room_code') || 'FM-1001';
+  let roomWs = null;
+  const modalSync = document.getElementById('modal-multi-device-sync');
+  const btnOpenSyncCompact = document.getElementById('btn-open-sync-compact');
+  const btnOpenSyncExpanded = document.getElementById('btn-open-sync-expanded');
+  const btnCloseSyncModal = document.getElementById('btn-close-sync-modal');
+  const syncQrContainer = document.getElementById('sync-qr-container');
+  const syncRoomCodeDisplay = document.getElementById('sync-room-code-display');
+  const btnCopyRoomCode = document.getElementById('btn-copy-room-code');
+  const copyRoomCodeLabel = document.getElementById('copy-room-code-label');
+  const syncInputJoinCode = document.getElementById('sync-input-join-code');
+  const btnJoinRoom = document.getElementById('btn-join-room');
+  const btnNewRoom = document.getElementById('btn-new-room');
+  const syncDevicesContainer = document.getElementById('sync-devices-container');
+  const syncDevicesCount = document.getElementById('sync-devices-count');
+
+  function renderRoomDevices(devices = []) {
+    if (!syncDevicesContainer) return;
+    syncDevicesContainer.innerHTML = '';
+
+    if (devices.length === 0) {
+      devices = [
+        { device_id: 'dev_host', name: 'Primary Laptop (You)', device_type: 'Laptop/Desktop', is_primary: true }
+      ];
+    }
+
+    if (syncDevicesCount) {
+      syncDevicesCount.textContent = `${devices.length} Device${devices.length === 1 ? '' : 's'} Online`;
+    }
+
+    devices.forEach(dev => {
+      const card = document.createElement('div');
+      card.className = 'flex items-center justify-between p-2.5 rounded-xl bg-black/40 border border-white/5 text-xs font-mono';
+      const icon = dev.device_type.toLowerCase().includes('tablet')
+        ? '<i data-lucide="tablet" class="w-3.5 h-3.5 text-emerald-400"></i>'
+        : dev.device_type.toLowerCase().includes('phone')
+        ? '<i data-lucide="smartphone" class="w-3.5 h-3.5 text-indigo-400"></i>'
+        : '<i data-lucide="laptop" class="w-3.5 h-3.5 text-cyan-400"></i>';
+
+      card.innerHTML = `
+        <div class="flex items-center space-x-2.5">
+          ${icon}
+          <span class="text-white">${dev.name}</span>
+          ${dev.is_primary ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">Host</span>' : '<span class="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-white/50">Paired Client</span>'}
+        </div>
+        <span class="text-[10px] text-emerald-400">● Connected</span>
+      `;
+      syncDevicesContainer.appendChild(card);
+    });
+
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  async function fetchRoomDetails(code) {
+    activeRoomCode = code;
+    localStorage.setItem('focusmind_room_code', code);
+    if (syncRoomCodeDisplay) syncRoomCodeDisplay.textContent = code;
+
+    try {
+      const res = await fetch(`/api/rooms/${code}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (syncQrContainer && data.qr_svg) {
+          syncQrContainer.innerHTML = data.qr_svg;
+        }
+        if (data.tutor_mode && data.tutor_mode !== tutorCurrentMode) {
+          updateTutorModeUI(data.tutor_mode, false);
+        }
+        renderRoomDevices(data.connected_devices);
+        return;
+      }
+    } catch (e) {
+      console.log('Room fetch fallback:', e);
+    }
+
+    // SVG fallback
+    if (syncQrContainer) {
+      syncQrContainer.innerHTML = `
+        <svg viewBox="0 0 160 160" width="140" height="140" xmlns="http://www.w3.org/2000/svg">
+          <rect width="160" height="160" fill="#000000" rx="8"/>
+          <rect x="20" y="20" width="35" height="35" fill="#06b6d4" rx="4"/>
+          <rect x="25" y="25" width="25" height="25" fill="#000000" rx="2"/>
+          <rect x="30" y="30" width="15" height="15" fill="#06b6d4" rx="1"/>
+          <rect x="105" y="20" width="35" height="35" fill="#06b6d4" rx="4"/>
+          <rect x="110" y="25" width="25" height="25" fill="#000000" rx="2"/>
+          <rect x="115" y="30" width="15" height="15" fill="#06b6d4" rx="1"/>
+          <rect x="20" y="105" width="35" height="35" fill="#06b6d4" rx="4"/>
+          <rect x="25" y="110" width="25" height="25" fill="#000000" rx="2"/>
+          <rect x="30" y="115" width="15" height="15" fill="#06b6d4" rx="1"/>
+          <text x="80" y="90" fill="#06b6d4" font-family="monospace" font-size="11" font-weight="bold" text-anchor="middle">${code}</text>
+        </svg>
+      `;
+    }
+    renderRoomDevices();
+  }
+
+  function initRoomWebSocket(code) {
+    try {
+      if (roomWs) {
+        roomWs.close();
+        roomWs = null;
+      }
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws/rooms/${code}`;
+      roomWs = new WebSocket(wsUrl);
+
+      roomWs.onmessage = (evt) => {
+        try {
+          const msg = JSON.parse(evt.data);
+          if (msg.type === 'CHAT_MESSAGE') {
+            if (msg.payload && msg.payload.reply) {
+              addTutorMessage(msg.payload.reply);
+            }
+          } else if (msg.type === 'MODE_CHANGED') {
+            if (msg.payload && msg.payload.mode && msg.payload.mode !== tutorCurrentMode) {
+              updateTutorModeUI(msg.payload.mode, false);
+              addSystemNotice(`Synchronized: Mode switched to ${msg.payload.mode === 'TEACHER' ? 'Teacher Bot' : 'Student Bot (Feynman)'}`);
+            }
+          } else if (msg.type === 'DEVICE_JOINED') {
+            if (msg.payload && msg.payload.device) {
+              fetchRoomDetails(code);
+            }
+          } else if (msg.type === 'CODE_SYNC') {
+            if (msg.payload && msg.payload.code && editorEl && editorEl.value !== msg.payload.code) {
+              editorEl.value = msg.payload.code;
+            }
+          }
+        } catch (err) {
+          console.warn('Room WS parse error:', err);
+        }
+      };
+    } catch (e) {
+      console.log('Room WS unavailable:', e);
+    }
+  }
+
+  function openSyncModal() {
+    if (!modalSync) return;
+    modalSync.classList.remove('hidden');
+    fetchRoomDetails(activeRoomCode);
+  }
+
+  function closeSyncModal() {
+    if (!modalSync) return;
+    modalSync.classList.add('hidden');
+  }
+
+  if (btnOpenSyncCompact) btnOpenSyncCompact.addEventListener('click', openSyncModal);
+  if (btnOpenSyncExpanded) btnOpenSyncExpanded.addEventListener('click', openSyncModal);
+  if (btnCloseSyncModal) btnCloseSyncModal.addEventListener('click', closeSyncModal);
+
+  if (modalSync) {
+    modalSync.addEventListener('click', (e) => {
+      if (e.target === modalSync) closeSyncModal();
+    });
+  }
+
+  // Copy Room Code Button
+  if (btnCopyRoomCode) {
+    btnCopyRoomCode.addEventListener('click', () => {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(activeRoomCode).then(() => {
+          if (copyRoomCodeLabel) copyRoomCodeLabel.textContent = 'Copied!';
+          setTimeout(() => {
+            if (copyRoomCodeLabel) copyRoomCodeLabel.textContent = 'Copy';
+          }, 2000);
+        });
+      }
+    });
+  }
+
+  // Join Room Button
+  if (btnJoinRoom && syncInputJoinCode) {
+    btnJoinRoom.addEventListener('click', async () => {
+      const targetCode = syncInputJoinCode.value.trim().toUpperCase();
+      if (!targetCode) return;
+
+      try {
+        const res = await fetch('/api/rooms/join', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            room_code: targetCode,
+            device_name: 'Secondary Client Device',
+            device_type: 'Tablet/Browser'
+          })
+        });
+        if (res.ok) {
+          const room = await res.json();
+          activeRoomCode = room.room_code;
+          fetchRoomDetails(activeRoomCode);
+          initRoomWebSocket(activeRoomCode);
+          syncInputJoinCode.value = '';
+          showZoomToast(`✓ Joined Room ${activeRoomCode}`);
+          return;
+        }
+      } catch (e) {
+        console.log('Join room fallback:', e);
+      }
+
+      activeRoomCode = targetCode;
+      fetchRoomDetails(activeRoomCode);
+      syncInputJoinCode.value = '';
+      showZoomToast(`Switched to Room ${activeRoomCode}`);
+    });
+  }
+
+  // Generate New Room Button
+  if (btnNewRoom) {
+    btnNewRoom.addEventListener('click', async () => {
+      try {
+        const res = await fetch('/api/rooms/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ host_device_name: 'Primary Desktop' })
+        });
+        if (res.ok) {
+          const newRoom = await res.json();
+          activeRoomCode = newRoom.room_code;
+          fetchRoomDetails(activeRoomCode);
+          initRoomWebSocket(activeRoomCode);
+          showZoomToast(`Created Session ${activeRoomCode}`);
+          return;
+        }
+      } catch (e) {
+        console.log('New room fallback:', e);
+      }
+      const randomCode = 'FM-' + Math.floor(1000 + Math.random() * 9000);
+      activeRoomCode = randomCode;
+      fetchRoomDetails(activeRoomCode);
+      showZoomToast(`Generated Room ${activeRoomCode}`);
+    });
+  }
+
+  // Sync editor code changes to room
+  if (editorEl) {
+    let editorDebounce = null;
+    editorEl.addEventListener('input', () => {
+      clearTimeout(editorDebounce);
+      editorDebounce = setTimeout(() => {
+        if (activeRoomCode) {
+          fetch(`/api/rooms/${activeRoomCode}/code`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: editorEl.value })
+          }).catch(e => console.log('Code sync offline:', e));
+        }
+      }, 1000);
+    });
+  }
+
+  // Initialize Room and WS connection
+  initRoomWebSocket(activeRoomCode);
+
   // Initialize Default State
   updateRobotAndHUD('FOCUSED');
 });
+

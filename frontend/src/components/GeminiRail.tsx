@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Activity, Flame, Trophy, Award, Sparkles, ChevronRight, ChevronLeft, ShieldCheck, Users, AlertTriangle, Send, BellRing, Video } from 'lucide-react';
+import { Activity, Flame, Trophy, Award, Sparkles, ChevronRight, ChevronLeft, ShieldCheck, Users, AlertTriangle, Send, BellRing, Video, QrCode } from 'lucide-react';
 
 interface GeminiRailProps {
   streakDays?: number;
@@ -7,6 +7,7 @@ interface GeminiRailProps {
   streakMultiplier?: number;
   isSleepingAlertActive?: boolean;
   onOpenZoomModal?: () => void;
+  onOpenSyncModal?: () => void;
 }
 
 export default function GeminiRail({
@@ -14,7 +15,8 @@ export default function GeminiRail({
   points = 450,
   streakMultiplier = 1.0,
   isSleepingAlertActive = false,
-  onOpenZoomModal
+  onOpenZoomModal,
+  onOpenSyncModal
 }: GeminiRailProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [nudgeNotification, setNudgeNotification] = useState<string | null>(null);
@@ -227,6 +229,17 @@ export default function GeminiRail({
                 <span>Zoom Co-Host & Controls</span>
               </button>
             )}
+
+            {/* Multi-Device Cross-Sync Button */}
+            {onOpenSyncModal && (
+              <button
+                onClick={onOpenSyncModal}
+                className="w-full mt-1.5 py-1.5 px-2.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-mono font-semibold flex items-center justify-center space-x-2 transition-all shadow-sm"
+              >
+                <QrCode className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Multi-Device Sync (QR)</span>
+              </button>
+            )}
           </div>
         ) : (
           <div className="flex flex-col items-center space-y-3">
@@ -243,6 +256,15 @@ export default function GeminiRail({
                 className="w-8 h-8 rounded-xl bg-white/5 hover:bg-cyan-500/20 border border-white/10 hover:border-cyan-500/30 text-white/40 hover:text-cyan-400 flex items-center justify-center transition-all"
               >
                 <Video className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {onOpenSyncModal && (
+              <button
+                onClick={onOpenSyncModal}
+                title="Multi-Device Sync & QR Pairing"
+                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-indigo-500/20 border border-white/10 hover:border-indigo-500/30 text-white/40 hover:text-indigo-400 flex items-center justify-center transition-all"
+              >
+                <QrCode className="w-3.5 h-3.5" />
               </button>
             )}
           </div>

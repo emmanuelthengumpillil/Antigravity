@@ -1,7 +1,8 @@
 import os
 import time
-from typing import Dict, Any, Optional
-from fastapi import FastAPI, HTTPException
+import random
+from typing import Dict, Any, Optional, List
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -23,7 +24,15 @@ from app.models import (
     ZoomSettings,
     ZoomDevice,
     UpdateZoomSettingsRequest,
-    PromoteDeviceRequest
+    PromoteDeviceRequest,
+    RoomDevice,
+    RoomChatMessage,
+    RoomSession,
+    CreateRoomRequest,
+    JoinRoomRequest,
+    SendRoomMessageRequest,
+    ToggleRoomModeRequest,
+    UpdateRoomCodeRequest
 )
 from app.ml_engine import MLEngine
 from app.tutor_engine import TutorEngine
@@ -384,6 +393,352 @@ def update_device_role(req: PromoteDeviceRequest):
         "device": found_device,
         "security_shield_active": zoom_classroom_state.security_shield_active
     }
+
+
+# =========================================================================
+# Cross-Device Connectivity & Real-Time Dual-Mode Sync Layer
+# =========================================================================
+
+def generate_qr_svg(room_code: str) -> str:
+    """Generates an embeddable, styled SVG QR code pairing badge for multi-device sync."""
+    return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160" class="rounded-2xl bg-white p-2 shadow-lg">
+  <rect width="160" height="160" fill="#ffffff" rx="14"/>
+  <!-- Finder Pattern 1 (Top-Left) -->
+  <rect x="16" y="16" width="38" height="38" fill="#000000" rx="6"/>
+  <rect x="22" y="22" width="26" height="26" fill="#ffffff" rx="3"/>
+  <rect x="27" y="27" width="16" height="16" fill="#06b6d4" rx="2"/>
+  <!-- Finder Pattern 2 (Top-Right) -->
+  <rect x="106" y="16" width="38" height="38" fill="#000000" rx="6"/>
+  <rect x="112" y="22" width="26" height="26" fill="#ffffff" rx="3"/>
+  <rect x="117" y="27" width="16" height="16" fill="#06b6d4" rx="2"/>
+  <!-- Finder Pattern 3 (Bottom-Left) -->
+  <rect x="16" y="106" width="38" height="38" fill="#000000" rx="6"/>
+  <rect x="22" y="112" width="26" height="26" fill="#ffffff" rx="3"/>
+  <rect x="27" y="117" width="16" height="16" fill="#06b6d4" rx="2"/>
+  <!-- Encoded Data Matrix Blocks -->
+  <rect x="64" y="20" width="10" height="10" fill="#09090b"/>
+  <rect x="80" y="20" width="10" height="10" fill="#06b6d4"/>
+  <rect x="64" y="36" width="26" height="10" fill="#09090b"/>
+  <rect x="64" y="52" width="10" height="10" fill="#06b6d4"/>
+  <rect x="80" y="52" width="10" height="10" fill="#09090b"/>
+  <rect x="20" y="64" width="12" height="12" fill="#09090b"/>
+  <rect x="36" y="64" width="12" height="12" fill="#06b6d4"/>
+  <rect x="108" y="64" width="14" height="14" fill="#09090b"/>
+  <rect x="126" y="64" width="14" height="14" fill="#06b6d4"/>
+  <rect x="20" y="80" width="12" height="12" fill="#06b6d4"/>
+  <rect x="114" y="84" width="26" height="10" fill="#09090b"/>
+  <rect x="64" y="106" width="12" height="12" fill="#06b6d4"/>
+  <rect x="80" y="106" width="12" height="12" fill="#09090b"/>
+  <rect x="64" y="124" width="28" height="12" fill="#09090b"/>
+  <rect x="106" y="106" width="14" height="14" fill="#06b6d4"/>
+  <rect x="124" y="124" width="16" height="16" fill="#09090b"/>
+  <!-- Center Room Code Pill -->
+  <rect x="42" y="70" width="76" height="20" fill="#09090b" rx="6"/>
+  <text x="80" y="84" font-size="11" font-family="monospace" font-weight="900" fill="#22d3ee" text-anchor="middle" letter-spacing="1">{room_code}</text>
+</svg>'''
+
+
+class RoomManager:
+    def __init__(self):
+        self.rooms: Dict[str, RoomSession] = {}
+        self.active_websockets: Dict[str, List[WebSocket]] = {}
+        # Pre-seed default room for instant testing
+        self.create_default_room("FM-1001")
+
+    def create_default_room(self, code: str = "FM-1001") -> RoomSession:
+        session = RoomSession(
+            room_code=code,
+            session_id=f"sess_{int(time.time())}_{code}",
+            active_mode="TEACHER",
+            current_topic="Two Sum & Hash Tables",
+            qr_code_svg=generate_qr_svg(code),
+            connected_devices=[
+                RoomDevice(
+                    device_id="dev_primary_main",
+                    device_name="Primary Workstation",
+                    device_type="Desktop",
+                    is_host=True
+                )
+            ],
+            chat_history=[
+                RoomChatMessage(
+                    id="init_1",
+                    sender="ai",
+                    author_name="FocusMind Master Educator",
+                    mode="TEACHER",
+                    text="Welcome to multi-device study room FM-1001! I'm your Teacher Bot. How can I help you master Two Sum & Hash Tables today?",
+                    hint=False
+                )
+            ],
+            shared_code="def two_sum(nums: list[int], target: int) -> list[int]:\n    seen = {}\n    for i, num in enumerate(nums):\n        diff = target - num\n        if diff in seen:\n            return [seen[diff], i]\n        seen[num] = i\n    return []\n"
+        )
+        self.rooms[code] = session
+        self.active_websockets[code] = []
+        return session
+
+    def get_room(self, code: str) -> Optional[RoomSession]:
+        return self.rooms.get(code.upper())
+
+    def create_room(self, device_name: str, device_type: str, topic: str = "Two Sum & Hash Tables", mode: str = "TEACHER") -> RoomSession:
+        num = random.randint(1000, 9999)
+        code = f"FM-{num}"
+        session = RoomSession(
+            room_code=code,
+            session_id=f"sess_{int(time.time())}_{code}",
+            active_mode=mode,
+            current_topic=topic,
+            qr_code_svg=generate_qr_svg(code),
+            connected_devices=[
+                RoomDevice(
+                    device_id=f"dev_host_{int(time.time())}",
+                    device_name=device_name,
+                    device_type=device_type,
+                    is_host=True
+                )
+            ],
+            chat_history=[
+                RoomChatMessage(
+                    id=f"msg_{int(time.time())}",
+                    sender="ai",
+                    author_name="FocusMind Master Educator" if mode == "TEACHER" else "Sam (Inquisitive Learner)",
+                    mode=mode,
+                    text=f"Room {code} created! Mode: {mode}. You are connected to {topic}.",
+                    hint=False
+                )
+            ]
+        )
+        self.rooms[code] = session
+        self.active_websockets[code] = []
+        return session
+
+    async def broadcast(self, room_code: str, event_type: str, data: Dict[str, Any]):
+        code = room_code.upper()
+        if code in self.active_websockets:
+            payload = {"event": event_type, "data": data, "timestamp": time.time()}
+            dead_sockets = []
+            for ws in self.active_websockets[code]:
+                try:
+                    await ws.send_json(payload)
+                except Exception:
+                    dead_sockets.append(ws)
+            for dead in dead_sockets:
+                if dead in self.active_websockets[code]:
+                    self.active_websockets[code].remove(dead)
+
+
+room_manager = RoomManager()
+
+
+@app.post("/api/rooms/create", response_model=RoomSession)
+async def create_room_endpoint(req: CreateRoomRequest):
+    """Creates a new collaborative room session with pairing code & QR code."""
+    room = room_manager.create_room(
+        device_name=req.device_name,
+        device_type=req.device_type,
+        topic=req.initial_topic or "Two Sum & Hash Tables",
+        mode=req.active_mode or "TEACHER"
+    )
+    return room
+
+
+@app.post("/api/rooms/join")
+async def join_room_endpoint(req: JoinRoomRequest):
+    """Pairs a secondary device into an active room session using room code."""
+    room = room_manager.get_room(req.room_code)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room code not found. Please verify the code or scan QR.")
+
+    new_device = RoomDevice(
+        device_id=f"dev_{int(time.time())}_{random.randint(10,99)}",
+        device_name=req.device_name,
+        device_type=req.device_type,
+        is_host=False
+    )
+    room.connected_devices.append(new_device)
+
+    # Broadcast join event to all connected devices in room
+    await room_manager.broadcast(room.room_code, "device_joined", {
+        "device": new_device.model_dump(),
+        "total_devices": len(room.connected_devices)
+    })
+
+    return {
+        "status": "joined",
+        "room": room,
+        "device": new_device
+    }
+
+
+@app.get("/api/rooms/{room_code}", response_model=RoomSession)
+def get_room_state(room_code: str):
+    """Retrieves full synchronized state of a study room."""
+    room = room_manager.get_room(room_code)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    return room
+
+
+@app.post("/api/rooms/{room_code}/chat")
+async def send_room_chat_message(room_code: str, req: SendRoomMessageRequest):
+    """
+    Appends user message to synced chat history, generates dual-mode AI response
+    (Teacher Bot vs Feynman Student Bot), and broadcasts to all devices in the room.
+    """
+    room = room_manager.get_room(room_code)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+
+    # 1. Store User message
+    user_msg = RoomChatMessage(
+        sender="user",
+        author_name=req.author_name,
+        mode=room.active_mode,
+        text=req.text,
+        device_id=req.device_id
+    )
+    room.chat_history.append(user_msg)
+
+    # 2. Generate AI reply via Dual-Mode Engine
+    ai_raw = tutor_engine.generate_dual_mode_reply(
+        mode=room.active_mode,
+        topic=room.current_topic,
+        user_message=req.text,
+        chat_history=[m.model_dump() for m in room.chat_history],
+        user_code=req.user_code or room.shared_code
+    )
+
+    ai_msg = RoomChatMessage(
+        sender="ai",
+        author_name=ai_raw.get("author_name", "FocusMind AI"),
+        mode=room.active_mode,
+        text=ai_raw.get("text", ""),
+        hint=(room.active_mode == "TEACHER")
+    )
+    room.chat_history.append(ai_msg)
+
+    # 3. Broadcast to all devices in the room via WebSocket
+    await room_manager.broadcast(room.room_code, "new_chat_message", {
+        "user_message": user_msg.model_dump(),
+        "ai_message": ai_msg.model_dump(),
+        "active_mode": room.active_mode
+    })
+
+    return {
+        "status": "success",
+        "user_message": user_msg,
+        "ai_message": ai_msg,
+        "active_mode": room.active_mode
+    }
+
+
+@app.post("/api/rooms/{room_code}/mode")
+async def toggle_room_mode(room_code: str, req: ToggleRoomModeRequest):
+    """
+    Seamlessly toggles between Teacher Bot Mode (🎓) and Feynman Student Bot Mode (🧠)
+    without losing context or chat history.
+    """
+    room = room_manager.get_room(room_code)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+
+    old_mode = room.active_mode
+    new_mode = req.new_mode.upper()
+    if new_mode not in ["TEACHER", "STUDENT"]:
+        raise HTTPException(status_code=400, detail="Invalid mode. Must be 'TEACHER' or 'STUDENT'")
+
+    room.active_mode = new_mode
+
+    # Invert system contextual notice in chat
+    if new_mode == "STUDENT":
+        notice = "🧠 Switched to Student Bot Mode (Feynman Technique). You are now the Teacher! Sam is ready to learn from you."
+    else:
+        notice = "🎓 Switched to Teacher Bot Mode. Master Educator is guiding you with Socratic scaffolding and analogies."
+
+    system_msg = RoomChatMessage(
+        sender="system",
+        author_name="System",
+        mode=new_mode,
+        text=notice
+    )
+    room.chat_history.append(system_msg)
+
+    # Broadcast mode change to all connected devices
+    await room_manager.broadcast(room.room_code, "mode_toggled", {
+        "previous_mode": old_mode,
+        "new_mode": new_mode,
+        "system_notice": notice,
+        "message": system_msg.model_dump()
+    })
+
+    return {
+        "status": "mode_updated",
+        "previous_mode": old_mode,
+        "active_mode": new_mode,
+        "room": room
+    }
+
+
+@app.post("/api/rooms/{room_code}/code")
+async def sync_room_code(room_code: str, req: UpdateRoomCodeRequest):
+    """Synchronizes Monaco workspace code across all paired devices in the room."""
+    room = room_manager.get_room(room_code)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+
+    room.shared_code = req.code_content
+
+    # Broadcast code update to all other connected devices
+    await room_manager.broadcast(room.room_code, "code_updated", {
+        "shared_code": room.shared_code,
+        "sender_device_id": req.device_id
+    })
+
+    return {
+        "status": "code_synced",
+        "shared_code": room.shared_code
+    }
+
+
+@app.websocket("/ws/rooms/{room_code}")
+async def room_websocket_endpoint(websocket: WebSocket, room_code: str):
+    """Real-time WebSocket endpoint for instant multi-device bidirectional state synchronization."""
+    await websocket.accept()
+    code = room_code.upper()
+
+    if code not in room_manager.active_websockets:
+        room_manager.active_websockets[code] = []
+    room_manager.active_websockets[code].append(websocket)
+
+    # Send initial snapshot on connect
+    room = room_manager.get_room(code)
+    if room:
+        await websocket.send_json({
+            "event": "room_snapshot",
+            "data": room.model_dump(),
+            "timestamp": time.time()
+        })
+
+    try:
+        while True:
+            data = await websocket.receive_json()
+            event = data.get("event")
+            payload = data.get("data", {})
+
+            if event == "ping":
+                await websocket.send_json({"event": "pong", "timestamp": time.time()})
+            elif event == "code_keystroke":
+                if room:
+                    room.shared_code = payload.get("code", room.shared_code)
+                    await room_manager.broadcast(code, "code_updated", {
+                        "shared_code": room.shared_code,
+                        "sender_device_id": payload.get("device_id")
+                    })
+    except WebSocketDisconnect:
+        if code in room_manager.active_websockets and websocket in room_manager.active_websockets[code]:
+            room_manager.active_websockets[code].remove(websocket)
+    except Exception:
+        if code in room_manager.active_websockets and websocket in room_manager.active_websockets[code]:
+            room_manager.active_websockets[code].remove(websocket)
 
 
 

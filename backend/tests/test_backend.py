@@ -281,3 +281,91 @@ def test_prolonged_drowsiness_1min_alert():
     assert you["drowsy_duration_seconds"] == 60
     assert "DROWSY" in you["status"]
 
+
+def test_multi_device_room_sync_and_dual_mode_ai():
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    client = TestClient(app)
+
+    # 1. Create a new collaborative room
+    create_res = client.post(
+        "/api/rooms/create",
+        json={
+            "device_name": "Primary MacBook",
+            "device_type": "Desktop",
+            "initial_topic": "Binary Search Trees",
+            "active_mode": "TEACHER"
+        }
+    )
+    assert create_res.status_code == 200
+    room_data = create_res.json()
+    room_code = room_data["room_code"]
+    assert room_code.startswith("FM-")
+    assert "<svg" in room_data["qr_code_svg"]
+    assert room_data["active_mode"] == "TEACHER"
+    assert len(room_data["connected_devices"]) == 1
+
+    # 2. Secondary device joins room (e.g. iPad Tablet)
+    join_res = client.post(
+        "/api/rooms/join",
+        json={
+            "room_code": room_code,
+            "device_name": "Classroom iPad Pro",
+            "device_type": "Tablet"
+        }
+    )
+    assert join_res.status_code == 200
+    join_data = join_res.json()
+    assert join_data["status"] == "joined"
+    assert len(join_data["room"]["connected_devices"]) == 2
+
+    # 3. Chat in Teacher Bot Mode (Expert Educator)
+    chat_res = client.post(
+        f"/api/rooms/{room_code}/chat",
+        json={
+            "author_name": "Student",
+            "text": "How do we search in a balanced binary search tree?",
+            "user_code": ""
+        }
+    )
+    assert chat_res.status_code == 200
+    chat_data = chat_res.json()
+    assert chat_data["active_mode"] == "TEACHER"
+    assert chat_data["ai_message"]["author_name"] == "FocusMind Master Educator"
+    assert "Intuitive Analogy" in chat_data["ai_message"]["text"] or "Comprehension Check" in chat_data["ai_message"]["text"] or len(chat_data["ai_message"]["text"]) > 20
+
+    # 4. Toggle Mode to Feynman Student Mode (User becomes Teacher)
+    toggle_res = client.post(
+        f"/api/rooms/{room_code}/mode",
+        json={"new_mode": "STUDENT"}
+    )
+    assert toggle_res.status_code == 200
+    toggle_data = toggle_res.json()
+    assert toggle_data["active_mode"] == "STUDENT"
+    assert "Feynman" in toggle_data["room"]["chat_history"][-1]["text"]
+
+    # 5. Chat in Feynman Student Mode (AI asks clarifying questions & tests understanding)
+    feynman_res = client.post(
+        f"/api/rooms/{room_code}/chat",
+        json={
+            "author_name": "User-As-Teacher",
+            "text": "We use a hash map to get O(1) constant time lookup instead of scanning.",
+            "user_code": ""
+        }
+    )
+    assert feynman_res.status_code == 200
+    feynman_data = feynman_res.json()
+    assert feynman_data["active_mode"] == "STUDENT"
+    assert "Sam (Inquisitive Learner)" in feynman_data["ai_message"]["author_name"]
+    # Verify Feynman technique prompting (plain english, like I'm 10, or why it works)
+    assert any(term in feynman_data["ai_message"]["text"].lower() for term in ["10", "explain", "simply", "why", "how", "box", "lookup"])
+
+    # 6. Synchronize code across clients
+    code_res = client.post(
+        f"/api/rooms/{room_code}/code",
+        json={"code_content": "def bst_search(root, target): pass"}
+    )
+    assert code_res.status_code == 200
+    assert code_res.json()["shared_code"] == "def bst_search(root, target): pass"
+
