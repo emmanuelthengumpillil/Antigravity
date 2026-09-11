@@ -147,13 +147,35 @@ class SleepAlertResponse(BaseModel):
     timestamp: float = Field(default_factory=lambda: time.time())
 
 
+class DrowsyAlertRequest(BaseModel):
+    student_id: str = "learner_you"
+    student_name: str = "You"
+    drowsy_duration_seconds: int = Field(60, description="Seconds student has been continuously drowsy")
+    ear_value: float = Field(0.20, description="Average eye aspect ratio during drowsy interval")
+    head_pitch_slump: float = Field(-15.0, description="Head pitch angle indicating slouching/drooping")
+    notification_channel: str = Field("BROWSER_AND_TEACHER", description="Dispatch channel")
+
+
+class DrowsyAlertResponse(BaseModel):
+    status: str = "DROWSY_NOTIFICATION_SENT"
+    notification_sent: bool = True
+    drowsy_duration_seconds: int = 60
+    notification_title: str = "Focus Alert: 1 Minute Drowsiness Detected"
+    notification_body: str = "You've been drowsy for 60 seconds. Take a deep breath, sit upright, or take a quick sip of water!"
+    teacher_dashboard_flagged: bool = True
+    flagged_student_id: str
+    timestamp: float = Field(default_factory=lambda: time.time())
+
+
 class TeacherStudentStatus(BaseModel):
     student_id: str
     name: str
-    status: str  # "Focusing", "On Break", "Idle", "SLEEPING"
-    emotion: str  # "FOCUSED", "HAPPY", "EXCITED", "ANXIOUS", "SAD", "SLEEPING"
+    status: str  # "Focusing", "On Break", "Idle", "SLEEPING", "DROWSY (1 min)"
+    emotion: str  # "FOCUSED", "HAPPY", "EXCITED", "ANXIOUS", "SAD", "SLEEPING", "DROWSY"
     ear_value: float
     is_sleeping_flagged: bool = False
+    is_drowsy_flagged: bool = False
+    drowsy_duration_seconds: int = 0
     last_nudge_received: Optional[str] = None
 
 

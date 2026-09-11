@@ -16,6 +16,8 @@ from app.models import (
     StudySession,
     SleepAlertRequest,
     SleepAlertResponse,
+    DrowsyAlertRequest,
+    DrowsyAlertResponse,
     TeacherStudentStatus,
     TeacherNudgeRequest,
     ZoomSettings,
@@ -256,6 +258,33 @@ def trigger_sleep_emergency(request: SleepAlertRequest):
         phone_notification_sent=True,
         notification_title="WAKE UP! Keep the focus streak alive! 🔥",
         notification_body=f"EAR {request.ear_value:.2f} detected prolonged eye closure. Alarm sounded and phone notified.",
+        teacher_dashboard_flagged=True,
+        flagged_student_id=request.student_id
+    )
+
+
+@app.post("/api/interventions/drowsy-alert", response_model=DrowsyAlertResponse)
+def trigger_drowsy_alert(request: DrowsyAlertRequest):
+    """
+    Prolonged Drowsiness Intervention Endpoint:
+    Dispatched when student is detected drowsy for continuous duration (~1 minute).
+    1. Flags student in Teacher Realtime Status Monitor as Drowsy.
+    2. Dispatches push notification and gentle waking alert.
+    """
+    for st in connected_students:
+        if st.student_id == request.student_id or st.name == request.student_name:
+            st.status = f"DROWSY ({request.drowsy_duration_seconds}s)"
+            st.emotion = "DROWSY"
+            st.ear_value = request.ear_value
+            st.is_drowsy_flagged = True
+            st.drowsy_duration_seconds = request.drowsy_duration_seconds
+
+    return DrowsyAlertResponse(
+        status="DROWSY_NOTIFICATION_SENT",
+        notification_sent=True,
+        drowsy_duration_seconds=request.drowsy_duration_seconds,
+        notification_title="Focus Alert: 1 Minute Drowsiness Detected",
+        notification_body=f"Continuous drowsiness detected for {request.drowsy_duration_seconds}s (EAR {request.ear_value:.2f}). Please sit upright, stretch, or take a quick sip of water!",
         teacher_dashboard_flagged=True,
         flagged_student_id=request.student_id
     )

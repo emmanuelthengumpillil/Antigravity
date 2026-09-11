@@ -7,6 +7,8 @@ export function useEmotionEngine() {
   const [gazeStability, setGazeStability] = useState(98);
   const [presenceConfidence, setPresenceConfidence] = useState(96);
   const [headPoseStatus, setHeadPoseStatus] = useState('Upright (0°)');
+  const [continuousDrowsySeconds, setContinuousDrowsySeconds] = useState(0);
+  const [isDrowsyAlertActive, setIsDrowsyAlertActive] = useState(false);
 
   // Streak points persisted in localStorage
   const [points, setPoints] = useState(() => {
@@ -105,6 +107,26 @@ export function useEmotionEngine() {
     return () => clearInterval(inferenceInterval);
   }, [cameraStatus]);
 
+  // 1-minute continuous drowsiness tracking
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (detectedState === 'DROWSY' || (earValue < 0.22 && detectedState !== 'AWAY')) {
+        setContinuousDrowsySeconds(prev => {
+          const next = prev + 1;
+          if (next >= 60) {
+            setIsDrowsyAlertActive(true);
+          }
+          return next;
+        });
+      } else {
+        setContinuousDrowsySeconds(0);
+        setIsDrowsyAlertActive(false);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [detectedState, earValue]);
+
   return {
     cameraStatus,
     detectedState,
@@ -113,6 +135,9 @@ export function useEmotionEngine() {
     gazeStability,
     presenceConfidence,
     headPoseStatus,
+    continuousDrowsySeconds,
+    isDrowsyAlertActive,
+    setIsDrowsyAlertActive,
     points,
     streakDays,
     streakMultiplier,

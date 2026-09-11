@@ -18,6 +18,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let isTimerActive = true;
   let codeFailCount = 0;
   let isSleepingAlertActive = false;
+  let continuousDrowsySeconds = 0;
+  let hasDispatchedDrowsyAlert = false;
+  const DROWSY_NOTIFICATION_THRESHOLD_SEC = 60; // 1 minute of sustained drowsiness
 
   // Real-time tracking biometrics
   let earValue = 0.28;
@@ -769,7 +772,158 @@ console.log(twoSum([2, 7, 11, 15], 9));
       const ring = document.getElementById('orb-hairline-progress');
       if (ring) ring.style.strokeDashoffset = offset;
     }
+
+    // Continuous 1-Minute Drowsiness Tracking
+    if (detectedState === 'DROWSY' || (earValue < 0.22 && detectedState !== 'AWAY')) {
+      continuousDrowsySeconds++;
+      const islandDrowsyBadge = document.getElementById('island-drowsy-badge');
+      const islandDrowsyTimerText = document.getElementById('island-drowsy-timer-text');
+      if (islandDrowsyBadge && islandDrowsyTimerText) {
+        islandDrowsyBadge.classList.remove('hidden');
+        islandDrowsyTimerText.textContent = `${continuousDrowsySeconds}s / 60s`;
+      }
+
+      if (continuousDrowsySeconds >= DROWSY_NOTIFICATION_THRESHOLD_SEC && !hasDispatchedDrowsyAlert) {
+        trigger1MinDrowsinessNotification();
+        hasDispatchedDrowsyAlert = true;
+      }
+    } else {
+      if (continuousDrowsySeconds > 0) {
+        continuousDrowsySeconds = 0;
+        hasDispatchedDrowsyAlert = false;
+        const islandDrowsyBadge = document.getElementById('island-drowsy-badge');
+        if (islandDrowsyBadge) islandDrowsyBadge.classList.add('hidden');
+      }
+    }
   }, 1000);
+
+  // =========================================================================
+  // 8b. Prolonged Drowsiness Notification System (1 Minute)
+  // =========================================================================
+  const bannerDrowsy1Min = document.getElementById('banner-drowsy-1min');
+  const btnDismissDrowsy = document.getElementById('btn-dismiss-drowsy');
+
+  function playGentleWakingChime() {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) {
+        const ctx = new AudioCtx();
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        notes.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          const start = ctx.currentTime + (idx * 0.16);
+
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, start);
+
+          gain.gain.setValueAtTime(0.001, start);
+          gain.gain.exponentialRampToValueAtTime(0.3, start + 0.05);
+          gain.gain.exponentialRampToValueAtTime(0.001, start + 0.35);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc.start(start);
+          osc.stop(start + 0.36);
+        });
+      }
+    } catch (e) {
+      console.warn('Audio chime blocked or unavailable:', e);
+    }
+  }
+
+  function trigger1MinDrowsinessNotification() {
+    // 1. Play gentle waking chime
+    playGentleWakingChime();
+
+    // 2. Show in-app banner
+    if (bannerDrowsy1Min) {
+      bannerDrowsy1Min.classList.remove('hidden');
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    // 3. Dispatch Desktop / Browser Push Notification
+    if ('Notification' in window) {
+      if (Notification.permission === 'granted') {
+        try {
+          new Notification('FocusMind Alert: 1 Minute Drowsiness Detected ⚠️', {
+            body: "You've been drowsy for 60 seconds. Sit upright, stretch, or take a quick sip of water!",
+            icon: 'https://cdn-icons-png.flaticon.com/512/3588/3588294.png',
+            tag: 'focusmind-drowsy-alert'
+          });
+        } catch (err) {
+          console.warn('Notification dispatch failed:', err);
+        }
+      } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then((perm) => {
+          if (perm === 'granted') {
+            try {
+              new Notification('FocusMind Alert: 1 Minute Drowsiness Detected ⚠️', {
+                body: "You've been drowsy for 60 seconds. Sit upright, stretch, or take a quick sip of water!"
+              });
+            } catch (err) {}
+          }
+        });
+      }
+    }
+
+    // 4. Update Teacher Realtime Monitor
+    const teacherYouCard = document.getElementById('teacher-student-you-card');
+    const teacherYouStatus = document.getElementById('teacher-student-you-status');
+    const teacherNudgeContainer = document.getElementById('teacher-nudge-action-container');
+    if (teacherYouCard && teacherYouStatus && teacherNudgeContainer) {
+      teacherYouCard.className = 'p-2 rounded-xl border border-amber-500/50 bg-amber-950/40 text-xs font-mono text-amber-300 animate-pulse';
+      teacherYouStatus.className = 'text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/40';
+      teacherYouStatus.textContent = 'DROWSY (1 min) [Notification Sent]';
+      teacherNudgeContainer.classList.remove('hidden');
+    }
+
+    // 5. Dispatch Backend API Notification
+    fetch('/api/interventions/drowsy-alert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        student_id: 'learner_you',
+        student_name: 'You',
+        drowsy_duration_seconds: continuousDrowsySeconds,
+        ear_value: earValue,
+        head_pitch_slump: -18.0,
+        notification_channel: 'BROWSER_AND_TEACHER'
+      })
+    }).catch(e => console.log('Drowsy notification sync error:', e));
+  }
+
+  function dismissDrowsyAlert() {
+    continuousDrowsySeconds = 0;
+    hasDispatchedDrowsyAlert = false;
+    if (bannerDrowsy1Min) bannerDrowsy1Min.classList.add('hidden');
+    const islandDrowsyBadge = document.getElementById('island-drowsy-badge');
+    if (islandDrowsyBadge) islandDrowsyBadge.classList.add('hidden');
+
+    const teacherYouCard = document.getElementById('teacher-student-you-card');
+    const teacherYouStatus = document.getElementById('teacher-student-you-status');
+    const teacherNudgeContainer = document.getElementById('teacher-nudge-action-container');
+    if (teacherYouCard && teacherYouStatus && teacherNudgeContainer) {
+      teacherYouCard.className = 'p-2 rounded-xl border border-white/5 bg-white/5 text-xs font-mono text-white/80 transition-all';
+      teacherYouStatus.className = 'text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400';
+      teacherYouStatus.textContent = 'Focusing [EAR 0.28]';
+      teacherNudgeContainer.classList.add('hidden');
+    }
+    updateRobotAndHUD('FOCUSED');
+  }
+
+  if (btnDismissDrowsy) {
+    btnDismissDrowsy.addEventListener('click', dismissDrowsyAlert);
+  }
+
+  // Request notification permission smoothly on first click anywhere
+  window.addEventListener('click', () => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, { once: true });
+
 
   // =========================================================================
   // 9. Zoom Classroom & Co-Host Manager System

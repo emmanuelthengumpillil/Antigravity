@@ -245,3 +245,39 @@ def test_zoom_classroom_settings_and_device_promotion():
     )
     assert bad_res.status_code == 404
 
+
+def test_prolonged_drowsiness_1min_alert():
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    client = TestClient(app)
+
+    # Trigger 1-minute drowsiness alert
+    alert_res = client.post(
+        "/api/interventions/drowsy-alert",
+        json={
+            "student_id": "learner_you",
+            "student_name": "You",
+            "drowsy_duration_seconds": 60,
+            "ear_value": 0.19,
+            "head_pitch_slump": -18.5,
+            "notification_channel": "BROWSER_AND_TEACHER"
+        }
+    )
+    assert alert_res.status_code == 200
+    data = alert_res.json()
+    assert data["status"] == "DROWSY_NOTIFICATION_SENT"
+    assert data["notification_sent"] is True
+    assert data["drowsy_duration_seconds"] == 60
+    assert "1 Minute Drowsiness" in data["notification_title"]
+    assert data["teacher_dashboard_flagged"] is True
+
+    # Check student in teacher roster is flagged as drowsy
+    teacher_res = client.get("/api/teacher/students")
+    assert teacher_res.status_code == 200
+    students = teacher_res.json()["students"]
+    you = next(s for s in students if s["name"] == "You")
+    assert you["is_drowsy_flagged"] is True
+    assert you["drowsy_duration_seconds"] == 60
+    assert "DROWSY" in you["status"]
+
