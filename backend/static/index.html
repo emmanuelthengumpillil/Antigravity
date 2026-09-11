@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FocusMind — OLED Dark Pomodoro & Emotional Focus</title>
-  
+  <title>FocusMind — Ambient OLED Coding & Deep Focus Platform</title>
+
   <!-- Tailwind CSS via CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -14,7 +14,8 @@
         extend: {
           colors: {
             oled: '#000000',
-            card: '#0a0a0a',
+            panel: '#070709',
+            card: '#0a0a0c'
           }
         }
       }
@@ -31,340 +32,371 @@
 
   <link rel="stylesheet" href="styles.css">
 </head>
-<body class="bg-black text-white min-h-screen flex flex-col font-sans antialiased selection:bg-white/20 selection:text-white relative overflow-x-hidden">
-
-  <!-- Ambient OLED background glow -->
-  <div class="fixed top-1/4 left-1/2 -translate-x-1/2 w-[550px] h-[550px] bg-indigo-950/20 rounded-full blur-[140px] pointer-events-none -z-10"></div>
+<body class="bg-black text-white w-screen h-screen overflow-hidden flex flex-col font-sans antialiased selection:bg-cyan-500/20 selection:text-white relative select-none">
 
   <!-- ========================================================================= -->
-  <!-- 1. iPhone "Dynamic Island" Header Component                               -->
+  <!-- Top: Enlarged Dynamic Island with Animated Robot                          -->
   <!-- ========================================================================= -->
-  <div id="dynamic-island-wrapper" class="fixed top-3 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ease-out select-none">
-    <div id="dynamic-island" class="bg-black text-white border border-white/10 rounded-full shadow-2xl transition-all duration-300 ease-spring backdrop-blur-xl cursor-pointer h-10 px-4 flex items-center space-x-3 w-auto min-w-[220px] hover:scale-[1.02]">
-      
-      <!-- Compact View -->
-      <div id="island-compact" class="flex items-center justify-between w-full space-x-3 text-xs font-mono">
-        <div class="flex items-center space-x-2">
-          <span class="relative flex h-2.5 w-2.5">
-            <span id="island-camera-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span id="island-camera-dot" class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-          </span>
-          <span id="island-time" class="text-[11px] font-medium tracking-tight text-white/80">25:00</span>
+  <header class="fixed top-3 left-1/2 -translate-x-1/2 z-50 select-none">
+    <div 
+      id="dynamic-island"
+      class="h-14 md:h-16 px-4 md:px-5 rounded-full bg-[#0a0a0a] border border-white/10 shadow-2xl backdrop-blur-xl flex items-center space-x-3.5 transition-all duration-300 hover:border-white/20"
+      style="box-shadow: 0 10px 30px rgba(0,0,0,0.9), 0 0 15px rgba(255,255,255,0.02);"
+    >
+      <!-- 1. Interactive Robot Companion (Left) -->
+      <div id="robot-avatar-container" class="flex items-center cursor-pointer" title="AI Robot Companion">
+        <svg id="robot-svg" viewBox="0 0 44 44" width="42" height="42" class="transform transition-transform duration-300 hover:scale-105">
+          <!-- Antenna -->
+          <line x1="22" y1="2" x2="22" y2="8" stroke="#52525b" stroke-width="2" stroke-linecap="round" />
+          <circle id="robot-antenna-light" cx="22" cy="2" r="2" fill="#06b6d4" class="animate-pulse" />
+
+          <!-- Head Chassis -->
+          <rect x="6" y="8" width="32" height="28" rx="9" fill="#0f0f11" stroke="#27272a" stroke-width="1.5" />
+          <!-- Visor -->
+          <rect x="9" y="11" width="26" height="22" rx="6" fill="#000000" />
+
+          <!-- Eyes & Mouth Group -->
+          <g id="robot-face-features">
+            <!-- Eyes -->
+            <circle id="robot-eye-left" cx="16" cy="18" r="3.2" fill="#06b6d4" />
+            <circle id="robot-eye-left-glint" cx="15.2" cy="17" r="1" fill="#ffffff" opacity="0.9" />
+
+            <circle id="robot-eye-right" cx="28" cy="18" r="3.2" fill="#06b6d4" />
+            <circle id="robot-eye-right-glint" cx="27.2" cy="17" r="1" fill="#ffffff" opacity="0.9" />
+
+            <!-- Blinking Eye Lines (hidden by default) -->
+            <line id="robot-blink-left" x1="13" y1="18" x2="19" y2="18" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" class="hidden" />
+            <line id="robot-blink-right" x1="25" y1="18" x2="31" y2="18" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" class="hidden" />
+
+            <!-- Mouth -->
+            <path id="robot-mouth" d="M 16 27 L 28 27" fill="transparent" stroke="#06b6d4" stroke-width="1.8" stroke-linecap="round" class="transition-all duration-300" />
+          </g>
+        </svg>
+      </div>
+
+      <!-- Separator -->
+      <div class="w-px h-6 bg-white/10"></div>
+
+      <!-- 2. Dominant State Badge -->
+      <div class="relative">
+        <button 
+          id="btn-emotion-dropdown"
+          class="flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider border border-cyan-500/30 text-cyan-400 bg-cyan-500/10 transition-all hover:scale-105 active:scale-95"
+          title="Click to test emotional states"
+        >
+          <span id="island-emotion-label">[FOCUSED]</span>
+          <i data-lucide="chevron-down" class="w-3 h-3 opacity-60"></i>
+        </button>
+
+        <!-- Dropdown Menu -->
+        <div id="emotion-dropdown-menu" class="hidden absolute top-10 left-0 w-36 py-1.5 rounded-2xl bg-neutral-950 border border-white/15 shadow-2xl z-50">
+          <button data-emotion="FOCUSED" class="btn-select-emo w-full text-left px-3 py-1 text-xs font-mono text-cyan-400 hover:bg-white/10 font-bold">[FOCUSED]</button>
+          <button data-emotion="HAPPY" class="btn-select-emo w-full text-left px-3 py-1 text-xs font-mono text-emerald-400 hover:bg-white/10">[HAPPY]</button>
+          <button data-emotion="EXCITED" class="btn-select-emo w-full text-left px-3 py-1 text-xs font-mono text-fuchsia-400 hover:bg-white/10">[EXCITED]</button>
+          <button data-emotion="ANXIOUS" class="btn-select-emo w-full text-left px-3 py-1 text-xs font-mono text-amber-400 hover:bg-white/10">[ANXIOUS]</button>
+          <button data-emotion="SAD" class="btn-select-emo w-full text-left px-3 py-1 text-xs font-mono text-blue-400 hover:bg-white/10">[SAD]</button>
         </div>
+      </div>
 
-        <span id="island-status-pill" class="text-[10px] px-1.5 py-0.5 rounded-full font-semibold uppercase tracking-wider bg-white/5 text-white/40">
-          PAUSED
+      <!-- 3. Discreet Green Camera Indicator ("Pop Camera" toggle) -->
+      <button 
+        id="btn-pop-camera" 
+        class="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-mono text-white/70 transition-all hover:text-white"
+        title="Vision Telemetry Active • Click for Camera View"
+      >
+        <span class="relative flex h-2 w-2">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
         </span>
+        <span class="hidden sm:inline text-xs text-emerald-400/90 font-medium">Vision HUD</span>
+      </button>
 
-        <div id="island-emotion-badge" class="flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
-          <span id="island-emotion-text">[FOCUSED]</span>
+      <!-- 4. Core Directive: Zero Timer Obsession — Hidden Metric (Exact time revealed ONLY on hover/tap) -->
+      <div id="hidden-metric-container" class="flex items-center pl-1 cursor-pointer">
+        <div id="ambient-flow-indicator" class="flex items-center space-x-1 text-white/30 text-[11px] font-mono" title="Hover to view exact remaining time">
+          <i data-lucide="activity" class="w-3.5 h-3.5 text-white/20 animate-pulse"></i>
+          <span class="hidden md:inline">Ambient Flow</span>
+        </div>
+        <div id="revealed-time-pill" class="hidden items-center space-x-1.5 px-2.5 py-1 rounded-full bg-white/10 text-white font-mono text-xs border border-white/15 animate-fadeIn">
+          <i data-lucide="clock" class="w-3 h-3 text-cyan-400"></i>
+          <span id="revealed-time-text">24:48</span>
         </div>
       </div>
-
-      <!-- Expanded View (Hidden by default, shown on hover/click) -->
-      <div id="island-expanded" class="hidden flex-col space-y-3.5 w-[360px] md:w-[420px] p-4 animate-island">
-        <div class="flex items-center justify-between pb-1 border-b border-white/10">
-          <div class="flex items-center space-x-2">
-            <span class="relative flex h-2 w-2">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            <span class="text-xs font-semibold tracking-wide text-white/90">Vision Telemetry Island</span>
-          </div>
-          <div class="flex items-center space-x-2">
-            <span id="island-expanded-state" class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-mono">
-              WORK • 25:00
-            </span>
-            <button id="btn-island-close" class="text-white/40 hover:text-white transition-colors">
-              <i data-lucide="minimize-2" class="w-3.5 h-3.5"></i>
-            </button>
-          </div>
-        </div>
-
-        <!-- Live Camera Feed Preview -->
-        <div class="relative w-full h-36 bg-neutral-950 rounded-xl overflow-hidden border border-white/10 flex items-center justify-center">
-          <video id="island-video-preview" autoplay playsinline muted class="w-full h-full object-cover transform -scale-x-100"></video>
-          
-          <div id="island-camera-fallback" class="hidden flex-col items-center justify-center text-white/40 space-y-1">
-            <i data-lucide="camera" class="w-6 h-6 text-white/20 animate-pulse"></i>
-            <span class="text-xs font-mono">Vision Telemetry Active (Background)</span>
-            <span class="text-[10px] text-white/30">Client-Side Private Extraction</span>
-          </div>
-
-          <div class="absolute top-2 left-2 flex items-center space-x-1.5 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur border border-white/10 text-[10px] font-mono text-white/80">
-            <i data-lucide="shield-check" class="w-3 h-3 text-emerald-400"></i>
-            <span>Zero Cloud Upload</span>
-          </div>
-
-          <div class="absolute bottom-2 right-2 flex items-center space-x-2 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur border border-white/10 text-[10px] font-mono text-white/80">
-            <span id="island-stability-text">Stability: 98%</span>
-            <span class="text-white/30">|</span>
-            <span id="island-distract-text">Distract: 4%</span>
-          </div>
-        </div>
-
-        <!-- Dominant Emotional State Selector -->
-        <div class="flex flex-col space-y-1.5">
-          <div class="flex items-center justify-between text-[11px]">
-            <span class="text-white/50 font-medium">Dominant Detected State:</span>
-            <span id="island-dominant-score" class="font-mono font-bold text-indigo-400">
-              [FOCUSED] <span class="text-white/40 font-normal">(94% Peak)</span>
-            </span>
-          </div>
-
-          <!-- Quick Emotion Buttons -->
-          <div class="grid grid-cols-5 gap-1.5 pt-1">
-            <button data-emotion="HAPPY" class="btn-emotion py-1 px-1 rounded-lg text-[10px] font-mono font-semibold bg-white/5 text-white/40 border border-white/5 hover:bg-white/10 hover:text-white transition-all">HAPPY</button>
-            <button data-emotion="FOCUSED" class="btn-emotion py-1 px-1 rounded-lg text-[10px] font-mono font-semibold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 ring-1 ring-white/20 transition-all">FOCUSED</button>
-            <button data-emotion="ANXIOUS" class="btn-emotion py-1 px-1 rounded-lg text-[10px] font-mono font-semibold bg-white/5 text-white/40 border border-white/5 hover:bg-white/10 hover:text-white transition-all">ANXIOUS</button>
-            <button data-emotion="SAD" class="btn-emotion py-1 px-1 rounded-lg text-[10px] font-mono font-semibold bg-white/5 text-white/40 border border-white/5 hover:bg-white/10 hover:text-white transition-all">SAD</button>
-            <button data-emotion="EXCITED" class="btn-emotion py-1 px-1 rounded-lg text-[10px] font-mono font-semibold bg-white/5 text-white/40 border border-white/5 hover:bg-white/10 hover:text-white transition-all">EXCITED</button>
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between text-[10px] text-white/40 pt-1 border-t border-white/5 font-mono">
-          <span>Distraction-Free Background Mode</span>
-          <span class="text-emerald-400">● Realtime Sync</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ========================================================================= -->
-  <!-- 2. Top Bar Navigation (Timer, Clock, Pomodoro, Stopwatch, Focus, Mini)    -->
-  <!-- ========================================================================= -->
-  <header class="w-full flex items-center justify-center pt-16 pb-4 z-20">
-    <div class="inline-flex items-center p-1 rounded-full bg-neutral-900/90 border border-white/10 backdrop-blur-md shadow-lg shadow-black/60">
-      <button data-tab="Timer" class="btn-nav-tab flex items-center space-x-1.5 px-4 py-1.5 rounded-full text-xs font-medium text-white/50 hover:text-white transition-all">
-        <i data-lucide="timer" class="w-3.5 h-3.5"></i>
-        <span>Timer</span>
-      </button>
-      <button data-tab="Clock" class="btn-nav-tab flex items-center space-x-1.5 px-4 py-1.5 rounded-full text-xs font-medium text-white/50 hover:text-white transition-all">
-        <i data-lucide="clock" class="w-3.5 h-3.5"></i>
-        <span>Clock</span>
-      </button>
-      <button data-tab="Pomodoro" class="btn-nav-tab flex items-center space-x-1.5 px-4 py-1.5 rounded-full text-xs font-semibold bg-white text-black shadow-md shadow-white/10 scale-[1.02] transition-all">
-        <i data-lucide="flame" class="w-3.5 h-3.5 text-black"></i>
-        <span>Pomodoro</span>
-      </button>
-      <button data-tab="Stopwatch" class="btn-nav-tab flex items-center space-x-1.5 px-4 py-1.5 rounded-full text-xs font-medium text-white/50 hover:text-white transition-all">
-        <i data-lucide="hourglass" class="w-3.5 h-3.5"></i>
-        <span>Stopwatch</span>
-      </button>
-      <button data-tab="Focus" class="btn-nav-tab flex items-center space-x-1.5 px-4 py-1.5 rounded-full text-xs font-medium text-white/50 hover:text-white transition-all">
-        <i data-lucide="zap" class="w-3.5 h-3.5"></i>
-        <span>Focus</span>
-      </button>
-      <button data-tab="Mini" class="btn-nav-tab flex items-center space-x-1.5 px-4 py-1.5 rounded-full text-xs font-medium text-white/50 hover:text-white transition-all">
-        <i data-lucide="minimize" class="w-3.5 h-3.5"></i>
-        <span>Mini</span>
-      </button>
     </div>
   </header>
 
   <!-- ========================================================================= -->
-  <!-- 3. Main Interface Viewport (Distraction-Free Minimal Dark Mode)            -->
+  <!-- Master Layout: 3-Column Architecture                                      -->
   <!-- ========================================================================= -->
-  <main class="flex-1 flex flex-col items-center justify-center w-full px-4 relative z-10">
-    
-    <!-- POMODORO VIEW -->
-    <div id="view-pomodoro" class="flex flex-col items-center justify-center w-full max-w-lg mx-auto py-6">
-      
-      <!-- Session Presets Switcher (Work / Short Break / Long Break) -->
-      <div class="flex items-center space-x-2 p-1 rounded-full bg-neutral-950 border border-white/10 mb-8 backdrop-blur">
-        <button id="btn-state-work" class="px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all bg-white text-black shadow-md shadow-white/10">
-          Work
-        </button>
-        <button id="btn-state-shortbreak" class="px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all text-white/40 hover:text-white/70 hover:bg-white/5">
-          Short Break
-        </button>
-        <button id="btn-state-longbreak" class="px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all text-white/40 hover:text-white/70 hover:bg-white/5">
-          Long Break
-        </button>
+  <div class="flex-1 flex w-full h-full pt-16 overflow-hidden">
+
+    <!-- ======================================================================= -->
+    <!-- 1. Left: Collapsible Gemini-Style Rail (Activity Rings + Score Board)     -->
+    <!-- ======================================================================= -->
+    <aside id="gemini-rail" class="h-full bg-[#0a0a0c]/90 border-r border-white/10 backdrop-blur-2xl transition-all duration-300 ease-spring z-40 flex flex-col justify-between py-5 w-16 px-2 hover:w-72 hover:px-4 shadow-2xl">
+      <!-- Top Brand & Activity Rings -->
+      <div class="flex flex-col items-center space-y-4">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500/20 via-cyan-500/20 to-emerald-500/20 border border-white/10 flex items-center justify-center text-cyan-400">
+          <i data-lucide="activity" class="w-5 h-5"></i>
+        </div>
+
+        <!-- Apple Health Concentric Rings -->
+        <div class="flex flex-col items-center justify-center pt-2">
+          <div class="relative w-28 h-28 flex items-center justify-center">
+            <svg class="w-28 h-28 transform -rotate-90">
+              <!-- Ring 1: Session Flow (88%) - Cyan -->
+              <circle cx="50%" cy="50%" r="42" stroke="#06b6d4" stroke-width="5" stroke-opacity="0.15" fill="transparent" />
+              <circle cx="50%" cy="50%" r="42" stroke="#06b6d4" stroke-width="5" stroke-dasharray="263.89" stroke-dashoffset="31.6" stroke-linecap="round" fill="transparent" />
+
+              <!-- Ring 2: Emotion Balance (94%) - Emerald -->
+              <circle cx="50%" cy="50%" r="32" stroke="#10b981" stroke-width="5" stroke-opacity="0.15" fill="transparent" />
+              <circle cx="50%" cy="50%" r="32" stroke="#10b981" stroke-width="5" stroke-dasharray="201.06" stroke-dashoffset="12.06" stroke-linecap="round" fill="transparent" />
+
+              <!-- Ring 3: Early Return (100%) - Fuchsia -->
+              <circle cx="50%" cy="50%" r="22" stroke="#d946ef" stroke-width="5" stroke-opacity="0.15" fill="transparent" />
+              <circle cx="50%" cy="50%" r="22" stroke="#d946ef" stroke-width="5" stroke-dasharray="138.23" stroke-dashoffset="0" stroke-linecap="round" fill="transparent" />
+            </svg>
+            <div class="absolute flex flex-col items-center justify-center text-center">
+              <span class="text-[9px] font-mono text-white/50">FLOW</span>
+              <span class="text-xs font-bold font-mono text-cyan-400">94%</span>
+            </div>
+          </div>
+
+          <!-- Activity Legend (Revealed on hover) -->
+          <div class="rail-expanded-content hidden w-full mt-3 space-y-1.5">
+            <div class="text-[10px] font-mono text-white/40 uppercase tracking-wider pb-1 border-b border-white/5">
+              Final Analysis Rings
+            </div>
+            <div class="flex items-center justify-between text-[11px] font-mono">
+              <span class="text-white/70">● Session Flow</span>
+              <span class="text-cyan-400 font-bold">88%</span>
+            </div>
+            <div class="flex items-center justify-between text-[11px] font-mono">
+              <span class="text-white/70">● Emotion Balance</span>
+              <span class="text-emerald-400 font-bold">94%</span>
+            </div>
+            <div class="flex items-center justify-between text-[11px] font-mono">
+              <span class="text-white/70">● Early-Return Cons.</span>
+              <span class="text-fuchsia-400 font-bold">100%</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- Main OLED Timer Ring -->
-      <div id="timer-ring-container" class="relative flex items-center justify-center rounded-full p-2 bg-neutral-950 border border-white/10 transition-shadow duration-700 shadow-[0_0_50px_rgba(99,102,241,0.15)]">
-        <svg class="w-72 h-72 md:w-80 md:h-80 transform -rotate-90">
-          <circle cx="50%" cy="50%" r="140" stroke="currentColor" stroke-width="5" fill="transparent" class="text-neutral-900" />
-          <circle id="timer-progress-circle" cx="50%" cy="50%" r="140" stroke="currentColor" stroke-width="5" stroke-dasharray="879.64" stroke-dashoffset="0" stroke-linecap="round" fill="transparent" class="text-white transition-all duration-1000 ease-linear" />
+      <!-- Center: Streak Score Board -->
+      <div class="w-full space-y-3">
+        <!-- Compact icon view -->
+        <div class="rail-compact-content flex flex-col items-center space-y-3 text-white/40">
+          <div class="flex flex-col items-center text-amber-400">
+            <i data-lucide="flame" class="w-4 h-4"></i>
+            <span class="text-[10px] font-mono font-bold mt-0.5">5d</span>
+          </div>
+          <div class="flex flex-col items-center text-indigo-400">
+            <i data-lucide="trophy" class="w-4 h-4"></i>
+            <span class="text-[10px] font-mono font-bold mt-0.5">450</span>
+          </div>
+        </div>
+
+        <!-- Expanded details view -->
+        <div class="rail-expanded-content hidden p-3 rounded-2xl bg-neutral-900/60 border border-white/10 space-y-2.5">
+          <div class="text-[10px] font-mono text-white/40 uppercase tracking-wider flex items-center justify-between">
+            <span>Score Board</span>
+            <span class="text-emerald-400">● Live Sync</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2 text-amber-400">
+              <i data-lucide="flame" class="w-4 h-4 fill-amber-400/20"></i>
+              <span class="font-bold text-sm font-mono">5 Days Streak</span>
+            </div>
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2 text-indigo-400">
+              <i data-lucide="trophy" class="w-4 h-4"></i>
+              <span class="font-bold text-sm font-mono">450 Pts (1.0x)</span>
+            </div>
+          </div>
+          <div class="pt-2 border-t border-white/5 text-[10px] font-mono text-white/50 space-y-1">
+            <div>+100 pts: Full Session Completed</div>
+            <div>+50 pts: Early Break Return Bonus</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Teacher Badge -->
+      <div class="w-full flex flex-col items-center">
+        <div class="rail-compact-content">
+          <i data-lucide="users" class="w-4 h-4 text-white/30"></i>
+        </div>
+        <div class="rail-expanded-content hidden w-full p-2.5 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between text-xs font-mono text-white/70">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="users" class="w-3.5 h-3.5 text-indigo-400"></i>
+            <span>Teacher Room</span>
+          </div>
+          <span class="text-[10px] text-emerald-400">Connected</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ======================================================================= -->
+    <!-- 2. Center: Ambient "Deep Focus" Space (Zero Countdown Timers)             -->
+    <!-- ======================================================================= -->
+    <main class="flex-1 flex flex-col items-center justify-center relative p-6 overflow-hidden bg-gradient-to-b from-black via-[#040407] to-black">
+      <!-- Soft Aura Glow Shift -->
+      <div id="orb-ambient-aura" class="absolute w-72 h-72 rounded-full blur-[100px] transition-all duration-1000 pointer-events-none bg-cyan-500/20"></div>
+
+      <!-- Concentric Breathing Siri/Apple Health Orb -->
+      <div class="relative flex items-center justify-center">
+        <!-- Hairline Perimeter Ring (Imperceptible, ambient session progress) -->
+        <svg class="w-80 h-80 md:w-96 md:h-96 transform -rotate-90">
+          <circle cx="50%" cy="50%" r="160" stroke="currentColor" stroke-width="1.5" fill="transparent" class="text-white/5" />
+          <circle id="orb-hairline-progress" cx="50%" cy="50%" r="160" stroke="currentColor" stroke-width="1.5" stroke-dasharray="1005.3" stroke-dashoffset="653.4" stroke-linecap="round" fill="transparent" class="stroke-cyan-400/40 transition-all duration-1000 ease-linear" />
         </svg>
 
-        <div class="absolute flex flex-col items-center justify-center text-center select-none">
-          <span id="timer-mode-label" class="text-[11px] font-mono tracking-widest uppercase text-white/40 mb-1">DEEP FOCUS</span>
-          <span id="timer-display" class="text-6xl md:text-7xl font-light tracking-tighter text-white font-mono drop-shadow-md">25:00</span>
-          <span id="timer-percent-label" class="text-[11px] font-mono text-white/30 mt-2">0% ELAPSED</span>
+        <!-- Outer Breathing Resonator -->
+        <div id="orb-resonator" class="absolute w-64 h-64 md:w-72 md:h-72 rounded-full bg-gradient-to-tr from-cyan-500/20 via-indigo-600/15 to-transparent border border-white/5 backdrop-blur-2xl animate-breathe" style="box-shadow: 0 0 60px rgba(6,182,212,0.22);"></div>
+
+        <!-- Mid Harmonic Layer -->
+        <div class="absolute w-48 h-48 md:w-56 md:h-56 rounded-full bg-[#0a0a0a]/90 border border-white/10 flex items-center justify-center shadow-inner">
+          <!-- Core Nucleus: Centered typography, ZERO countdown numbers -->
+          <div class="w-32 h-32 md:w-36 md:h-36 rounded-full bg-black flex flex-col items-center justify-center p-3 text-center border border-white/5 shadow-2xl">
+            <span class="text-[10px] font-mono tracking-[0.3em] uppercase text-white/40 mb-1">FLOW STATE</span>
+            <span class="text-sm md:text-base font-semibold tracking-[0.25em] text-white/90 drop-shadow">DEEP FOCUS</span>
+            <span id="orb-cadence-label" class="text-[9px] font-mono tracking-widest mt-1.5 text-cyan-300/60">CALM CADENCE</span>
+          </div>
         </div>
       </div>
 
-      <!-- Presets Selector (25/5, 50/10, Quick) -->
-      <div class="flex items-center space-x-2 mt-6">
-        <button data-preset="STANDARD" class="btn-preset px-3 py-1 rounded-lg text-xs font-mono bg-white/10 text-white border border-white/20 transition-all">25/5 Standard</button>
-        <button data-preset="DEEP_WORK" class="btn-preset px-3 py-1 rounded-lg text-xs font-mono text-white/40 hover:text-white/70 hover:bg-white/5 border border-transparent transition-all">50/10 Deep</button>
-        <button data-preset="QUICK_TEST" class="btn-preset px-3 py-1 rounded-lg text-xs font-mono text-white/40 hover:text-white/70 hover:bg-white/5 border border-transparent transition-all">Quick Test</button>
+      <!-- Ambient Rhythmic Subtitle -->
+      <div class="mt-8 flex items-center space-x-2 text-white/30 text-xs font-mono tracking-widest uppercase">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+        <span>4-Second Rhythmic Cycle</span>
+      </div>
+    </main>
+
+    <!-- ======================================================================= -->
+    <!-- 3. Right: LeetCode-Style Split Pane + Adaptive Socratic AI Tutor         -->
+    <!-- ======================================================================= -->
+    <aside class="w-[450px] lg:w-[500px] h-full border-l border-white/10 bg-[#070709]/80 backdrop-blur-xl flex flex-col overflow-hidden p-3 space-y-3">
+      
+      <!-- Upper Problem & Code Editor Pane -->
+      <div class="flex-1 bg-[#0a0a0c] border border-white/10 rounded-2xl flex flex-col overflow-hidden shadow-2xl">
+        <!-- Control Bar -->
+        <div class="px-4 py-2.5 bg-neutral-950 border-b border-white/10 flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <button id="tab-btn-problem" class="flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-medium text-white/40 hover:text-white hover:bg-white/5 transition-all">
+              <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+              <span>Problem</span>
+            </button>
+            <button id="tab-btn-code" class="flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-medium bg-white/10 text-white font-semibold transition-all">
+              <i data-lucide="code-2" class="w-3.5 h-3.5"></i>
+              <span>Workspace</span>
+            </button>
+          </div>
+
+          <div class="flex items-center space-x-2">
+            <div class="flex items-center p-0.5 rounded-lg bg-neutral-900 border border-white/10 text-[11px] font-mono">
+              <button id="btn-lang-python" class="px-2 py-0.5 rounded-md bg-white/15 text-white font-bold transition-all">Python</button>
+              <button id="btn-lang-ts" class="px-2 py-0.5 rounded-md text-white/40 hover:text-white transition-all">TS</button>
+            </div>
+
+            <button id="btn-run-code" class="flex items-center space-x-1.5 px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 text-xs font-mono font-medium transition-all active:scale-95">
+              <i data-lucide="play" class="w-3 h-3 fill-current"></i>
+              <span id="run-code-label">Run</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Problem Tab Content (Hidden by default) -->
+        <div id="pane-problem" class="hidden p-4 space-y-3 overflow-y-auto text-xs text-white/80 leading-relaxed font-sans">
+          <div class="flex items-center justify-between pb-2 border-b border-white/10">
+            <h3 class="text-sm font-bold text-white tracking-tight">1. Two Sum</h3>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">EASY</span>
+          </div>
+          <p>Given an array of integers <code class="text-cyan-300 font-mono">nums</code> and an integer <code class="text-cyan-300 font-mono">target</code>, return indices of the two numbers such that they add up to target.</p>
+          <div class="bg-neutral-900/60 p-2.5 rounded-xl border border-white/5 space-y-1 font-mono text-[11px]">
+            <div class="text-white/40">Example 1:</div>
+            <div>Input: nums = [2,7,11,15], target = 9</div>
+            <div class="text-emerald-400">Output: [0,1] (nums[0] + nums[1] == 9)</div>
+          </div>
+          <div class="text-[11px] text-white/50 space-y-0.5">
+            <div>Constraints:</div>
+            <div>• 2 &lt;= nums.length &lt;= 10⁴</div>
+            <div>• Only one valid answer exists.</div>
+          </div>
+        </div>
+
+        <!-- Code Editor Area -->
+        <div id="pane-code" class="flex-1 flex flex-col p-2 bg-[#000000]">
+          <textarea id="code-editor" spellcheck="false" class="flex-1 w-full bg-transparent text-white/90 font-mono text-xs p-2 resize-none focus:outline-none leading-relaxed selection:bg-cyan-500/20"></textarea>
+        </div>
+
+        <!-- Execution Output Terminal -->
+        <div id="pane-output" class="hidden p-3 bg-black/95 border-t border-white/10 font-mono text-[11px] text-white/80 space-y-1">
+          <div class="flex items-center justify-between text-white/40 pb-1 border-b border-white/5">
+            <span class="flex items-center space-x-1">
+              <i data-lucide="terminal" class="w-3 h-3"></i>
+              <span>Execution Output</span>
+            </span>
+            <button id="btn-close-output" class="hover:text-white">✕</button>
+          </div>
+          <pre id="output-text" class="whitespace-pre-wrap"></pre>
+        </div>
       </div>
 
-      <!-- Main Controls -->
-      <div class="flex items-center space-x-4 mt-8">
-        <button id="btn-reset" title="Reset Session" class="p-3 rounded-full bg-neutral-900 border border-white/10 text-white/50 hover:text-white hover:border-white/25 transition-all duration-200 active:scale-95">
-          <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
-        </button>
+      <!-- Lower Embedded Socratic AI Tutor Drawer ("AI Bot Here") -->
+      <div class="w-full bg-[#0d0d10] border border-white/10 rounded-2xl flex flex-col overflow-hidden shadow-xl">
+        <div id="tutor-header" class="px-4 py-2.5 bg-neutral-950/90 border-b border-white/10 flex items-center justify-between cursor-pointer hover:bg-neutral-900/60 transition-colors">
+          <div class="flex items-center space-x-2">
+            <div class="w-6 h-6 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center border border-cyan-500/30">
+              <i data-lucide="bot" class="w-3.5 h-3.5"></i>
+            </div>
+            <span class="text-xs font-semibold text-white/90">AI Socratic Mentor</span>
+            <span id="tutor-status-badge" class="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-mono">Online</span>
+          </div>
+          <i id="tutor-chevron" data-lucide="chevron-down" class="w-3.5 h-3.5 text-white/40"></i>
+        </div>
 
-        <button id="btn-play-pause" class="flex items-center justify-center w-16 h-16 rounded-full bg-white text-black hover:bg-neutral-200 shadow-xl shadow-white/20 ring-4 ring-white/10 transition-all duration-300 active:scale-95">
-          <i id="play-pause-icon" data-lucide="play" class="w-6 h-6 fill-current ml-0.5"></i>
-        </button>
+        <div id="tutor-content" class="flex flex-col">
+          <div id="tutor-chat-history" class="p-3 space-y-2.5 max-h-48 overflow-y-auto text-xs font-sans">
+            <div class="p-2.5 rounded-xl bg-white/5 border border-white/10 text-white/80 leading-relaxed">
+              Hello! I'm your Socratic AI companion. I observe your code and focus rhythm without disrupting your flow. How can I nudge your thinking today?
+            </div>
+          </div>
 
-        <button id="btn-skip" title="Skip Interval" class="p-3 rounded-full bg-neutral-900 border border-white/10 text-white/50 hover:text-white hover:border-white/25 transition-all duration-200 active:scale-95">
-          <i data-lucide="skip-forward" class="w-4 h-4"></i>
-        </button>
-
-        <button id="btn-sound-toggle" title="Toggle Gentle Chime" class="p-3 rounded-full bg-neutral-900 border border-white/10 text-white/70 hover:text-white transition-all duration-200 active:scale-95">
-          <i id="sound-icon" data-lucide="volume-2" class="w-4 h-4"></i>
-        </button>
-      </div>
-    </div>
-
-    <!-- CLOCK VIEW (Hidden by default) -->
-    <div id="view-clock" class="hidden flex-col items-center justify-center space-y-3 py-12">
-      <span class="text-xs font-mono text-white/40 tracking-widest uppercase">Local Focus Clock</span>
-      <div id="clock-display" class="text-7xl md:text-8xl font-light font-mono tracking-tighter text-white">00:00:00</div>
-      <span class="text-xs font-mono text-white/30">Synced with system time</span>
-    </div>
-
-    <!-- STOPWATCH VIEW (Hidden by default) -->
-    <div id="view-stopwatch" class="hidden flex-col items-center justify-center space-y-4 py-12">
-      <span class="text-xs font-mono text-white/40 tracking-widest uppercase">Continuous Flow Tracker</span>
-      <div id="stopwatch-display" class="text-7xl font-light font-mono tracking-tighter text-white">00:00:00</div>
-      <button id="btn-stopwatch-toggle" class="px-6 py-2 rounded-full bg-white text-black font-mono text-xs font-bold hover:bg-neutral-200 transition-all">Start Flow</button>
-    </div>
-
-    <!-- MINI VIEW (Hidden by default) -->
-    <div id="view-mini" class="hidden flex-col items-center justify-center space-y-3 py-16">
-      <span id="mini-time-display" class="text-5xl font-mono font-light">25:00</span>
-      <span class="text-xs font-mono text-white/40">Mini Focus HUD Active</span>
-    </div>
-
-  </main>
-
-  <!-- ========================================================================= -->
-  <!-- 4. Ambient Streak System (Non-intrusive bottom right)                      -->
-  <!-- ========================================================================= -->
-  <div class="fixed bottom-6 right-6 z-40 flex flex-col items-end space-y-2 select-none">
-    <div id="streak-reward-toast" class="hidden bg-neutral-900/95 border border-amber-500/30 text-amber-300 text-xs px-3.5 py-1.5 rounded-full shadow-lg shadow-black/80 flex items-center space-x-2 font-mono backdrop-blur-md animate-bounce">
-      <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-400"></i>
-      <span id="streak-toast-text">+100 pts: Focus Session Completed</span>
-    </div>
-
-    <div class="flex items-center space-x-2.5 px-4 py-2 rounded-full bg-neutral-950/90 border border-white/10 shadow-xl backdrop-blur-md hover:border-white/20 transition-all cursor-default">
-      <div class="flex items-center space-x-1.5 text-amber-400">
-        <i data-lucide="flame" class="w-4 h-4 fill-amber-400/20"></i>
-        <span id="streak-days-display" class="font-bold text-xs font-mono">5 Days</span>
+          <div class="p-2.5 bg-neutral-950 border-t border-white/10 flex items-center space-x-2">
+            <input id="tutor-input" type="text" placeholder="Ask for a gentle nudge..." class="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white placeholder-white/30 focus:outline-none focus:border-cyan-500/40">
+            <button id="btn-tutor-send" class="p-1.5 rounded-xl bg-white text-black hover:bg-neutral-200 transition-colors">
+              <i data-lucide="send" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
       </div>
 
-      <span class="text-white/20">|</span>
+    </aside>
+  </div>
 
-      <div class="flex items-center space-x-1 text-white/80">
-        <i data-lucide="trophy" class="w-3.5 h-3.5 text-indigo-400"></i>
-        <span id="streak-points-display" class="text-xs font-mono font-medium">450 Pts</span>
+  <!-- Pop Camera Vision Modal -->
+  <div id="modal-camera-hud" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn">
+    <div class="w-full max-w-md rounded-3xl bg-neutral-950 border border-white/15 p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-white/10">
+        <span class="text-xs font-mono font-bold text-white/90">Vision Telemetry Monitor</span>
+        <button id="btn-close-cam-modal" class="text-white/40 hover:text-white">✕</button>
       </div>
-
-      <span id="streak-multiplier-badge" class="text-[10px] px-1.5 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-mono font-bold">
-        1.0x
-      </span>
+      <div class="relative w-full h-52 bg-black rounded-2xl overflow-hidden border border-white/10 flex items-center justify-center">
+        <video id="hud-camera-preview" autoplay playsinline muted class="w-full h-full object-cover transform -scale-x-100"></video>
+        <div class="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/70 border border-white/10 text-[10px] font-mono text-emerald-400">
+          On-Device Landmark Extraction Active
+        </div>
+      </div>
+      <p class="text-xs text-white/60 leading-relaxed font-sans">
+        All facial landmarks (EAR, MAR, Head Pose) are processed 100% on your device. Zero frames are uploaded to any server.
+      </p>
     </div>
   </div>
 
-  <!-- ========================================================================= -->
-  <!-- 5. Classroom & Collaborative Mode (Peer & Teacher Portal - Bottom Left)   -->
-  <!-- ========================================================================= -->
-  <div class="fixed bottom-6 left-6 z-40 select-none">
-    <button id="btn-toggle-classroom" class="flex items-center space-x-2.5 px-4 py-2 rounded-full bg-neutral-950/90 border border-white/10 shadow-xl backdrop-blur-md hover:border-white/20 transition-all text-xs font-mono text-white/80 hover:text-white">
-      <i data-lucide="users" class="w-3.5 h-3.5 text-indigo-400"></i>
-      <span>Study Room (5 Active)</span>
-      <i id="classroom-chevron" data-lucide="chevron-up" class="w-3.5 h-3.5"></i>
-    </button>
-
-    <div id="classroom-panel" class="hidden absolute bottom-12 left-0 w-80 md:w-96 rounded-2xl bg-neutral-950/95 border border-white/10 shadow-2xl p-4 backdrop-blur-xl animate-fadeIn text-white">
-      <div class="flex items-center justify-between pb-3 border-b border-white/10">
-        <div class="flex items-center space-x-2">
-          <i data-lucide="users" class="w-4 h-4 text-indigo-400"></i>
-          <span class="text-xs font-bold font-sans">Collaborative Space</span>
-        </div>
-        <div class="flex items-center p-0.5 rounded-full bg-neutral-900 border border-white/10 text-[10px] font-mono">
-          <button id="btn-role-student" class="px-2 py-0.5 rounded-full bg-white text-black font-semibold transition-all">Peer</button>
-          <button id="btn-role-teacher" class="px-2 py-0.5 rounded-full text-white/40 hover:text-white transition-all">Teacher</button>
-        </div>
-      </div>
-
-      <div id="teacher-alert-banner" class="hidden my-2 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-mono flex items-center space-x-2 animate-pulse">
-        <i data-lucide="check-circle-2" class="w-3.5 h-3.5 flex-shrink-0"></i>
-        <span id="teacher-alert-text">Sent encouragement!</span>
-      </div>
-
-      <!-- Student View -->
-      <div id="classroom-student-view" class="mt-3 space-y-2">
-        <div class="text-[11px] text-white/40 font-mono">Connected Peers:</div>
-        <div id="student-peer-list" class="space-y-1.5 max-h-56 overflow-y-auto pr-1"></div>
-      </div>
-
-      <!-- Teacher View -->
-      <div id="classroom-teacher-view" class="hidden mt-3 space-y-3">
-        <div class="flex items-center justify-between">
-          <span class="text-[11px] text-white/40 font-mono">Emotional Well-Being Monitor</span>
-          <button id="btn-sync-class" class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/30 transition-all font-mono">
-            Sync Class Timer
-          </button>
-        </div>
-        <div id="teacher-student-list" class="space-y-2 max-h-56 overflow-y-auto pr-1"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ========================================================================= -->
-  <!-- 6. First-Visit Camera Permission Modal                                     -->
-  <!-- ========================================================================= -->
-  <div id="modal-camera-permission" class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 select-none">
-    <div class="w-full max-w-md rounded-3xl bg-neutral-950 border border-white/15 p-6 shadow-2xl shadow-black text-center space-y-5">
-      <div class="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
-        <i data-lucide="camera" class="w-8 h-8"></i>
-      </div>
-
-      <div class="space-y-2">
-        <h2 class="text-xl font-bold tracking-tight text-white">Enable Vision Telemetry</h2>
-        <p class="text-xs text-white/60 leading-relaxed max-w-sm mx-auto">
-          FocusMind observes engagement, blink rate, and fatigue to protect your focus flow. Once enabled, the camera tucks into your <span class="text-white font-medium">Dynamic Island</span>.
-        </p>
-      </div>
-
-      <div class="space-y-2 text-left bg-neutral-900/60 p-3.5 rounded-2xl border border-white/5 text-xs text-white/70">
-        <div class="flex items-center space-x-2.5">
-          <i data-lucide="lock" class="w-4 h-4 text-emerald-400 flex-shrink-0"></i>
-          <span><strong>100% On-Device:</strong> No video or audio is ever recorded or uploaded.</span>
-        </div>
-        <div class="flex items-center space-x-2.5">
-          <i data-lucide="eye" class="w-4 h-4 text-indigo-400 flex-shrink-0"></i>
-          <span><strong>Distraction-Free:</strong> Heavy reports run quietly in the background.</span>
-        </div>
-      </div>
-
-      <button id="btn-grant-camera" class="w-full py-3 px-4 rounded-xl bg-white text-black font-semibold text-xs tracking-wide hover:bg-neutral-200 transition-all active:scale-[0.98] shadow-lg shadow-white/10">
-        Enable Camera & Launch Dynamic Island
-      </button>
-
-      <button id="btn-skip-camera" class="text-[11px] text-white/40 hover:text-white/70 transition-colors font-mono block mx-auto">
-        Continue with Synthetic Telemetry
-      </button>
-    </div>
-  </div>
-
-  <!-- Hidden background video and canvas for MediaPipe extraction -->
+  <!-- Hidden background video and canvas for landmark engine -->
   <video id="bg-webcam" playsinline autoplay muted class="hidden"></video>
   <canvas id="bg-canvas" class="hidden" width="640" height="480"></canvas>
-
-  <!-- Minimal Footer -->
-  <footer class="w-full py-4 text-center text-[11px] font-mono text-white/20 select-none">
-    FocusMind OLED • Emotion-Aware Ambient Focus
-  </footer>
 
   <script src="app.js"></script>
 </body>

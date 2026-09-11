@@ -7,7 +7,7 @@ body {
   background-color: #000000;
   color: #ffffff;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
 /* Fluid spring timing for Dynamic Island */
@@ -15,34 +15,41 @@ body {
   transition-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-@keyframes islandExpand {
-  0% {
-    transform: scale(0.95);
-    opacity: 0.7;
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
   }
-  100% {
-    transform: scale(1);
+  to {
     opacity: 1;
+    transform: scale(1) translateY(0);
   }
 }
 
-.animate-island {
-  animation: islandExpand 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+.animate-fadeIn {
+  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes breathe {
   0%, 100% {
-    transform: scale(0.92);
-    box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+    transform: scale(0.96);
   }
   50% {
-    transform: scale(1.15);
-    box-shadow: 0 0 50px rgba(99, 102, 241, 0.7);
+    transform: scale(1.05);
   }
 }
 
 .animate-breathe {
-  animation: breathe 8s infinite ease-in-out;
+  animation: breathe 4s infinite ease-in-out;
+}
+
+/* Gemini Rail Hover Expansion */
+#gemini-rail:hover .rail-expanded-content {
+  display: block !important;
+}
+
+#gemini-rail:hover .rail-compact-content {
+  display: none !important;
 }
 
 /* Minimal Scrollbars */
