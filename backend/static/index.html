@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FocusMind — Emotion-Aware AI Tutor</title>
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              900: '#312e81',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.4/dist/confetti.browser.min.js"></script>
+
+  <!-- MediaPipe Face Mesh & Camera Utils -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-indigo-500 selection:text-white">
+
+  <!-- Top Navigation Bar -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-40 px-4 lg:px-8 py-3">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+      
+      <!-- Brand Logo & Title -->
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+          <i data-lucide="brain" class="w-6 h-6 text-white"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="font-bold text-lg text-white tracking-tight">FocusMind</span>
+            <span class="text-xs bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-2 py-0.5 rounded-full font-medium">AI Tutor</span>
+          </div>
+          <p class="text-xs text-slate-400">Emotion-Aware Cognitive Engagement Platform</p>
+        </div>
+      </div>
+
+      <!-- Cognitive State Indicator Badge -->
+      <div id="stateBadgeContainer" class="flex items-center space-x-3 px-4 py-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 transition-all duration-300">
+        <div id="statePulseDot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 pulse-glow"></div>
+        <div class="flex flex-col">
+          <div class="flex items-center space-x-1.5">
+            <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Cognitive State:</span>
+            <span id="stateNameText" class="text-xs font-bold text-emerald-300">Relaxed (Flow State)</span>
+          </div>
+          <span id="statePedagogyText" class="text-[10px] text-slate-400">Steady focus • Silent monitoring</span>
+        </div>
+      </div>
+
+      <!-- Quick Action Controls & Timers -->
+      <div class="flex items-center space-x-3">
+        
+        <!-- Privacy Shield Pill -->
+        <button id="btnPrivacyModal" class="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 border border-slate-700 text-xs text-emerald-400 transition" title="Privacy-First Guarantee">
+          <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+          <span>0 Video Uploaded</span>
+        </button>
+
+        <!-- Session Timer -->
+        <div class="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs font-mono text-slate-300">
+          <i data-lucide="clock" class="w-3.5 h-3.5 text-indigo-400"></i>
+          <span id="sessionTimer">00:00:00</span>
+        </div>
+
+        <!-- Role 3: Debugger Console Button -->
+        <button id="btnOpenDebugger" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-amber-500/40 text-amber-300 text-xs font-medium transition shadow-sm hover:shadow-amber-500/10">
+          <i data-lucide="wrench" class="w-3.5 h-3.5"></i>
+          <span>Debugger</span>
+          <span id="debuggerBadgeCount" class="w-2 h-2 rounded-full bg-emerald-400"></span>
+        </button>
+
+        <!-- Session Analytics -->
+        <button id="btnOpenAnalytics" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition shadow-md shadow-indigo-500/20">
+          <i data-lucide="bar-chart-3" class="w-3.5 h-3.5"></i>
+          <span>Analytics</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Non-Intrusive Floating Supportive Intervention Toast -->
+  <div id="interventionToast" class="fixed bottom-6 right-6 z-50 max-w-md w-full p-4 rounded-xl bg-slate-900/95 border border-indigo-500/40 shadow-2xl shadow-indigo-500/20 backdrop-blur translate-y-24 opacity-0 transition-all duration-300 pointer-events-none">
+    <div class="flex items-start space-x-3">
+      <div id="toastIconBg" class="p-2 rounded-lg bg-indigo-500/20 text-indigo-400 shrink-0">
+        <i id="toastIcon" data-lucide="sparkles" class="w-5 h-5"></i>
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center justify-between">
+          <h4 id="toastTitle" class="text-sm font-semibold text-white">Supportive Check-In</h4>
+          <button id="btnCloseToast" class="text-slate-400 hover:text-white text-xs">✕</button>
+        </div>
+        <p id="toastMessage" class="text-xs text-slate-300 mt-1 leading-relaxed">
+          Looks like your attention drifted. Ready to refocus?
+        </p>
+        <div class="mt-3 flex items-center space-x-2">
+          <button id="btnToastAction" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition">
+            Take Action
+          </button>
+          <button id="btnToastDismiss" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 text-xs transition">
+            I'm fine, keep going
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Grid Workspace -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+    
+    <!-- LEFT PANEL: Vision HUD & Telemetry Meters (cols 12 -> lg: 5) -->
+    <section class="lg:col-span-5 flex flex-col space-y-4">
+      
+      <!-- Video & Landmark Overlay Box -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl flex flex-col">
+        
+        <!-- Camera HUD Header & Mode Toggle -->
+        <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between bg-slate-900/60">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="camera" class="w-4 h-4 text-indigo-400"></i>
+            <h3 class="text-xs font-semibold text-slate-200 uppercase tracking-wider">Vision Engine</h3>
+            <span id="fpsBadge" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">30 FPS</span>
+          </div>
+
+          <!-- Feed Mode: Real Camera vs Synthetic Simulator -->
+          <div class="flex items-center bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-[11px]">
+            <button id="btnModeLive" class="px-2.5 py-1 rounded-md font-medium text-white bg-indigo-600 transition">
+              Live Webcam
+            </button>
+            <button id="btnModeSynthetic" class="px-2.5 py-1 rounded-md font-medium text-slate-400 hover:text-slate-200 transition">
+              Simulation
+            </button>
+          </div>
+        </div>
+
+        <!-- Viewport Container -->
+        <div class="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden">
+          <!-- Video Element (Hidden or visible based on toggle) -->
+          <video id="webcamVideo" class="absolute inset-0 w-full h-full object-cover -scale-x-100" playsinline muted autoplay></video>
+          
+          <!-- Landmark & Pose Canvas Overlay -->
+          <canvas id="landmarkCanvas" class="absolute inset-0 w-full h-full object-cover -scale-x-100 z-10"></canvas>
+
+          <!-- Camera Placeholder / Permission Prompt -->
+          <div id="cameraConsentPrompt" class="absolute inset-0 bg-slate-950/90 z-20 flex flex-col items-center justify-center p-6 text-center">
+            <div class="w-12 h-12 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center mb-3">
+              <i data-lucide="video" class="w-6 h-6"></i>
+            </div>
+            <h4 class="text-sm font-semibold text-white">Webcam Permission Required</h4>
+            <p class="text-xs text-slate-400 mt-1 max-w-xs">
+              FocusMind runs 100% on-device MediaPipe vision to detect engagement signals. No video frames are ever recorded or transmitted.
+            </p>
+            <div class="mt-4 flex flex-wrap gap-2 justify-center">
+              <button id="btnEnableCamera" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-500/25 transition">
+                Grant Camera Access
+              </button>
+              <button id="btnUseSimulatorFallback" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition">
+                Try Synthetic Simulator
+              </button>
+            </div>
+          </div>
+
+          <!-- Synthetic Simulation Overlay HUD -->
+          <div id="simHudBanner" class="absolute top-2 left-2 z-20 hidden px-2 py-1 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[10px] font-medium flex items-center space-x-1">
+            <i data-lucide="flask-conical" class="w-3 h-3"></i>
+            <span>Synthetic Mode Active</span>
+          </div>
+
+          <!-- Sustained Persistence Accumulator Bar -->
+          <div class="absolute bottom-0 inset-x-0 h-1 bg-slate-800 z-20">
+            <div id="persistenceProgressBar" class="h-full bg-gradient-to-r from-indigo-500 to-pink-500 w-0 transition-all duration-100"></div>
+          </div>
+        </div>
+
+        <!-- Simulation Quick State Buttons (Accessible anytime for testing) -->
+        <div class="p-3 bg-slate-950/60 border-t border-slate-800">
+          <div class="flex items-center justify-between text-[11px] mb-2 text-slate-400">
+            <span class="font-semibold uppercase tracking-wider">Simulate Emotional State:</span>
+            <span class="text-[10px] text-indigo-400">Instant Pedagogical Testing</span>
+          </div>
+          <div class="grid grid-cols-5 gap-1.5">
+            <button class="sim-btn px-2 py-1.5 rounded-lg bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-500/30 text-emerald-300 text-[11px] font-medium text-center transition" data-state="Relaxed">
+              Relaxed
+            </button>
+            <button class="sim-btn px-2 py-1.5 rounded-lg bg-amber-950/60 hover:bg-amber-900 border border-amber-500/30 text-amber-300 text-[11px] font-medium text-center transition" data-state="Surprised">
+              Surprised
+            </button>
+            <button class="sim-btn px-2 py-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-900 border border-rose-500/30 text-rose-300 text-[11px] font-medium text-center transition" data-state="Angry">
+              Angry
+            </button>
+            <button class="sim-btn px-2 py-1.5 rounded-lg bg-blue-950/60 hover:bg-blue-900 border border-blue-500/30 text-blue-300 text-[11px] font-medium text-center transition" data-state="Sad">
+              Sad
+            </button>
+            <button class="sim-btn px-2 py-1.5 rounded-lg bg-purple-950/60 hover:bg-purple-900 border border-purple-500/30 text-purple-300 text-[11px] font-medium text-center transition" data-state="Tedious">
+              Tedious
+            </button>
+          </div>
+
+          <!-- Secondary Behavioral Trigger Presets -->
+          <div class="grid grid-cols-3 gap-1.5 mt-2">
+            <button class="sim-behavior-btn px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] border border-slate-700 transition" data-behavior="microsleep">
+              😴 Microsleep (EAR &lt; 0.18)
+            </button>
+            <button class="sim-behavior-btn px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] border border-slate-700 transition" data-behavior="yawn">
+              🥱 Yawning (MAR &gt; 0.50)
+            </button>
+            <button class="sim-behavior-btn px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] border border-slate-700 transition" data-behavior="slump">
+              📉 Head Slump (Pitch &lt; -15°)
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Live Landmark Telemetry Gauges -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="activity" class="w-4 h-4 text-purple-400"></i>
+            <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Observable Behavioral Signals</h4>
+          </div>
+          <span class="text-[10px] text-slate-400">Threshold Window: 2.0s</span>
+        </div>
+
+        <!-- Metric 1: EAR (Eye Aspect Ratio / Blinks) -->
+        <div>
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-slate-400">Eye Aspect Ratio (EAR) & Blink Rate:</span>
+            <span id="valEar" class="font-mono text-indigo-300 font-semibold">0.28 (18/min)</span>
+          </div>
+          <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+            <div id="barEar" class="h-full bg-indigo-500 rounded-full transition-all duration-150" style="width: 70%;"></div>
+          </div>
+        </div>
+
+        <!-- Metric 2: MAR (Mouth Aspect Ratio / Yawn) -->
+        <div>
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-slate-400">Mouth Aspect Ratio (MAR / Yawn):</span>
+            <span id="valMar" class="font-mono text-purple-300 font-semibold">0.15</span>
+          </div>
+          <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+            <div id="barMar" class="h-full bg-purple-500 rounded-full transition-all duration-150" style="width: 30%;"></div>
+          </div>
+        </div>
+
+        <!-- Metric 3: Brow Furrow Tension (Friction / Cognitive Overload) -->
+        <div>
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-slate-400">Brow Furrow (browDown / Tension):</span>
+            <span id="valBrowFurrow" class="font-mono text-rose-400 font-semibold">0.05</span>
+          </div>
+          <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+            <div id="barBrowFurrow" class="h-full bg-rose-500 rounded-full transition-all duration-150" style="width: 5%;"></div>
+          </div>
+        </div>
+
+        <!-- Metric 4: Brow Elevation (browInnerUp / Surprise) -->
+        <div>
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-slate-400">Brow Inner Up (browInnerUp / Wonder):</span>
+            <span id="valBrowInnerUp" class="font-mono text-amber-400 font-semibold">0.05</span>
+          </div>
+          <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+            <div id="barBrowInnerUp" class="h-full bg-amber-500 rounded-full transition-all duration-150" style="width: 5%;"></div>
+          </div>
+        </div>
+
+        <!-- Metric 5: Head Pose Angles (Pitch Slump & Yaw Gaze Aversion) -->
+        <div>
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-slate-400">Head Pose (Pitch Slump / Yaw Gaze):</span>
+            <span id="valHeadPose" class="font-mono text-emerald-400 font-semibold">Pitch: 0.0° | Yaw: 0.0°</span>
+          </div>
+          <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden flex">
+            <div id="barHeadPitch" class="h-full bg-emerald-500 transition-all duration-150" style="width: 50%;"></div>
+            <div id="barHeadYaw" class="h-full bg-cyan-500 transition-all duration-150" style="width: 50%;"></div>
+          </div>
+        </div>
+
+        <!-- Active Signal Bullet List -->
+        <div class="pt-2 border-t border-slate-800">
+          <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Detected Micro-Patterns:</span>
+          <ul id="activeSignalsList" class="text-xs text-slate-300 space-y-1">
+            <li class="flex items-center space-x-2 text-emerald-400">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              <span>Baseline neutral facial muscles, steady gaze, normal blink frequency</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- RIGHT PANEL: Interactive Study Workspace & Code Canvas (cols 12 -> lg: 7) -->
+    <section class="lg:col-span-7 flex flex-col space-y-4">
+      
+      <!-- Curriculum Module Selector & Header -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
+          <div>
+            <div class="flex items-center space-x-2">
+              <span id="moduleTrackTag" class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+                Algorithms & Complexity
+              </span>
+              <span id="moduleDifficultyTag" class="text-[10px] font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400">
+                Intermediate
+              </span>
+              <span class="text-[10px] text-slate-500 font-mono">15 min</span>
+            </div>
+            <h2 id="moduleTitle" class="text-lg font-bold text-white mt-1">Binary Search & Boundary Conditions</h2>
+          </div>
+
+          <!-- Module Selector Dropdown -->
+          <div class="flex items-center space-x-2">
+            <label for="moduleSelect" class="text-xs text-slate-400">Module:</label>
+            <select id="moduleSelect" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-3 py-1.5 text-slate-200 focus:outline-none focus:border-indigo-500">
+              <option value="mod_binary_search">Binary Search & Boundaries</option>
+              <option value="mod_neural_loss">Cross-Entropy & Softmax</option>
+              <option value="mod_dynamic_prog">Dynamic Programming Memoization</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Concept Summary Box -->
+        <p id="moduleConceptSummary" class="text-xs text-slate-300 mt-3 leading-relaxed">
+          Binary search is an efficient O(log n) search algorithm on sorted arrays. 
+          The most common pitfalls occur at boundary conditions: `low &lt;= high` vs `low &lt; high`, 
+          and calculating `mid = low + (high - low) // 2` to prevent integer overflow.
+        </p>
+
+        <div class="mt-3 flex items-center space-x-2 text-xs text-slate-400">
+          <i data-lucide="target" class="w-3.5 h-3.5 text-indigo-400"></i>
+          <span id="moduleTaskPrompt" class="font-medium text-slate-300">Task: Run and verify the binary search implementation on test cases.</span>
+        </div>
+      </div>
+
+      <!-- Code Playground / Editor Box -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl flex-1 flex flex-col">
+        
+        <!-- Editor Header -->
+        <div class="px-4 py-2.5 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="code-2" class="w-4 h-4 text-emerald-400"></i>
+            <span class="text-xs font-semibold text-slate-300 font-mono">solution.py</span>
+            <span class="text-[10px] text-slate-500 font-mono">Python 3.11</span>
+          </div>
+
+          <!-- Editor Actions -->
+          <div class="flex items-center space-x-2">
+            <button id="btnAskTutor" class="flex items-center space-x-1 px-2.5 py-1 rounded bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 text-xs font-medium transition">
+              <i data-lucide="bot" class="w-3.5 h-3.5"></i>
+              <span>Ask AI Tutor</span>
+            </button>
+            <button id="btnResetCode" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition">
+              Reset
+            </button>
+            <button id="btnRunCode" class="flex items-center space-x-1 px-3 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-md shadow-emerald-600/20 transition">
+              <i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i>
+              <span>Run Tests</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Editable Code Textarea with Syntax Theme -->
+        <div class="relative flex-1 min-h-[220px] bg-slate-950 p-4">
+          <textarea id="codeEditor" spellcheck="false" class="w-full h-full bg-transparent text-emerald-400 code-font text-xs leading-relaxed resize-none focus:outline-none focus:ring-0 selection:bg-indigo-600"></textarea>
+        </div>
+
+        <!-- Test Case Execution Results Console -->
+        <div class="border-t border-slate-800 bg-slate-900/90 p-4">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Test Suite Output:</span>
+            <span id="testStatusBadge" class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400">Ready to run</span>
+          </div>
+          <div id="testCaseResults" class="space-y-1.5 text-xs font-mono">
+            <div class="text-slate-500">Click "Run Tests" to execute unit test cases against your code.</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Pedagogical Assistance Accordion: Step-by-Step Breakdown & Hints -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="lightbulb" class="w-4 h-4 text-amber-400"></i>
+            <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Adaptive Pedagogical Support</h4>
+          </div>
+          <button id="btnToggleHints" class="text-xs text-indigo-400 hover:text-indigo-300 font-medium">
+            Toggle Details
+          </button>
+        </div>
+
+        <!-- Hints & Step Breakdown Content -->
+        <div id="pedagogyContent" class="space-y-3 pt-2">
+          <div>
+            <span class="text-xs font-semibold text-amber-300 block mb-1">Clarifying Hints:</span>
+            <ul id="hintsList" class="text-xs text-slate-300 space-y-1 list-disc list-inside">
+              <li>Remember that binary search requires the input array to be strictly sorted.</li>
+            </ul>
+          </div>
+          <div>
+            <span class="text-xs font-semibold text-indigo-300 block mb-1">Step-by-Step Breakdown:</span>
+            <ol id="stepsList" class="text-xs text-slate-300 space-y-1 list-decimal list-inside">
+              <li>Initialize two pointers: `low = 0` and `high = len(arr) - 1`.</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- MODAL 1: 3-Breath Guided Reset -->
+  <div id="modalBreathingReset" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-indigo-500/30 rounded-3xl p-8 max-w-md w-full text-center shadow-2xl relative">
+      <button class="modal-close absolute top-4 right-4 text-slate-400 hover:text-white">✕</button>
+      <div class="w-12 h-12 mx-auto rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center mb-4">
+        <i data-lucide="wind" class="w-6 h-6"></i>
+      </div>
+      <h3 class="text-lg font-bold text-white">3-Breath Cognitive Reset</h3>
+      <p class="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
+        When task friction causes furrowed brow tension, a 30-second physiological reset restores prefrontal working memory.
+      </p>
+
+      <!-- Animated Breathing Bubble -->
+      <div class="my-8 flex flex-col items-center justify-center">
+        <div class="w-36 h-36 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center animate-breathe text-white shadow-2xl">
+          <span id="breathRhythmText" class="text-sm font-semibold tracking-wide">Inhale...</span>
+        </div>
+        <span id="breathCycleCounter" class="mt-4 text-xs font-mono text-slate-400">Breath 1 of 3</span>
+      </div>
+
+      <button id="btnFinishBreathing" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-500/25 transition">
+        I Feel Refocused & Ready
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL 2: 20-20-20 Rule Eye Break -->
+  <div id="modalTwentyRule" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-purple-500/30 rounded-3xl p-8 max-w-md w-full text-center shadow-2xl relative">
+      <button class="modal-close absolute top-4 right-4 text-slate-400 hover:text-white">✕</button>
+      <div class="w-12 h-12 mx-auto rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center mb-4">
+        <i data-lucide="eye" class="w-6 h-6"></i>
+      </div>
+      <h3 class="text-lg font-bold text-white">20-20-20 Visual Rest</h3>
+      <p class="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
+        Drooping eyelids and micro-blinks detected. Every 20 minutes, look at an object 20 feet away for 20 seconds to prevent ocular fatigue.
+      </p>
+
+      <!-- 20-Second Countdown & Visual Focus Target -->
+      <div class="my-8 flex flex-col items-center justify-center">
+        <div class="relative flex items-center justify-center">
+          <div class="w-28 h-28 rounded-full border-4 border-dashed border-purple-500/40 animate-spin flex items-center justify-center"></div>
+          <span id="twentyTimerDisplay" class="absolute font-mono text-3xl font-extrabold text-white">20</span>
+        </div>
+        <p class="text-xs text-purple-300 mt-4 font-medium">Look away from your monitor at a distant point (window, wall, or corridor).</p>
+      </div>
+
+      <button id="btnFinishTwentyRule" class="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow-lg shadow-purple-500/25 transition">
+        Completed Eye Rest
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL 3: 2-Minute Ergonomic Posture & Stretch Guide -->
+  <div id="modalStretchBreak" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-emerald-500/30 rounded-3xl p-6 max-w-lg w-full shadow-2xl relative">
+      <button class="modal-close absolute top-4 right-4 text-slate-400 hover:text-white">✕</button>
+      <div class="flex items-center space-x-3 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+          <i data-lucide="heart-pulse" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-bold text-white">2-Minute Ergonomic Reset</h3>
+          <p class="text-xs text-slate-400">Mitigate head slumping and fatigue from 45+ minutes of continuous screen focus.</p>
+        </div>
+      </div>
+
+      <div class="space-y-3 my-4">
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-start space-x-3">
+          <span class="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center shrink-0 font-bold">1</span>
+          <div>
+            <h5 class="text-xs font-semibold text-white">Chin Tucks & Neck Rolls (30 sec)</h5>
+            <p class="text-[11px] text-slate-400 mt-0.5">Tuck your chin inward toward your throat without tilting your head down. Gently roll neck side to side.</p>
+          </div>
+        </div>
+
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-start space-x-3">
+          <span class="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center shrink-0 font-bold">2</span>
+          <div>
+            <h5 class="text-xs font-semibold text-white">Shoulder Blade Squeezes (30 sec)</h5>
+            <p class="text-[11px] text-slate-400 mt-0.5">Roll your shoulders backward and squeeze your scapulae together. Hold for 5 seconds, repeat 4 times.</p>
+          </div>
+        </div>
+
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-start space-x-3">
+          <span class="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center shrink-0 font-bold">3</span>
+          <div>
+            <h5 class="text-xs font-semibold text-white">Thoracic Extension & Deep Breath (60 sec)</h5>
+            <p class="text-[11px] text-slate-400 mt-0.5">Place hands behind head, arch gently over the back of your chair, open chest wide, and take deep diaphragmatic breaths.</p>
+          </div>
+        </div>
+      </div>
+
+      <button id="btnFinishStretch" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-lg shadow-emerald-600/25 transition">
+        Return to Study Flow
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL 4: ROLE 3 - DIAGNOSTIC DEBUGGER & ERROR CODE REPAIR -->
+  <div id="modalDebugger" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-amber-500/40 rounded-3xl p-6 max-w-2xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto">
+      <button class="modal-close absolute top-4 right-4 text-slate-400 hover:text-white">✕</button>
+      
+      <!-- Debugger Header -->
+      <div class="flex items-center space-x-3 border-b border-slate-800 pb-4">
+        <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+          <i data-lucide="bug" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h3 class="text-base font-bold text-white">FocusMind Error Code Debugger & Diagnostic Engine</h3>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono">Role 3</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-0.5">
+            Diagnoses telemetry anomalies and heals error codes non-destructively without altering student code content.
+          </p>
+        </div>
+      </div>
+
+      <!-- Current Diagnostic Status -->
+      <div class="my-4 p-4 rounded-xl bg-slate-950 border border-slate-800">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">System Health Status:</span>
+          <span id="dbgHealthBadge" class="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+            HEALTHY (All Systems Nominal)
+          </span>
+        </div>
+
+        <div id="dbgErrorList" class="mt-3 space-y-2 text-xs">
+          <div class="text-slate-500 font-mono">No active error codes detected in telemetry stream.</div>
+        </div>
+      </div>
+
+      <!-- Test Anomaly Injector -->
+      <div class="my-4">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-2">Simulate Error Code (Test Harness):</span>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+          <button class="dbg-inject-btn p-2 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-amber-300 font-mono text-left transition" data-code="ERR_LOW_CONFIDENCE">
+            ⚠️ ERR_LOW_CONFIDENCE
+          </button>
+          <button class="dbg-inject-btn p-2 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-amber-300 font-mono text-left transition" data-code="ERR_FACE_NOT_FOUND">
+            ❌ ERR_FACE_NOT_FOUND
+          </button>
+          <button class="dbg-inject-btn p-2 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-amber-300 font-mono text-left transition" data-code="ERR_LANDMARK_JITTER">
+            〰️ ERR_LANDMARK_JITTER
+          </button>
+          <button class="dbg-inject-btn p-2 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-amber-300 font-mono text-left transition" data-code="ERR_OCCLUSION">
+            ✋ ERR_OCCLUSION
+          </button>
+          <button class="dbg-inject-btn p-2 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-amber-300 font-mono text-left transition" data-code="ERR_CAMERA_STALL">
+            ⏸️ ERR_CAMERA_STALL
+          </button>
+          <button class="dbg-inject-btn p-2 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-amber-300 font-mono text-left transition" data-code="ERR_BASELINE_DRIFT">
+            📐 ERR_BASELINE_DRIFT
+          </button>
+        </div>
+      </div>
+
+      <!-- Non-Destructive Remediation Console -->
+      <div class="my-4 p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Non-Destructive Error Repair:</span>
+          <span class="text-[10px] text-slate-400">Content-Preservation Guarantee</span>
+        </div>
+
+        <p class="text-xs text-slate-400">
+          The debugger fixes camera calibrations, tracking bias offsets, and filtering matrices while asserting cryptographic SHA-256 validation to confirm zero modification to the student's active code or study progress.
+        </p>
+
+        <div id="dbgRemedyConsole" class="p-3 rounded-lg bg-slate-900 font-mono text-xs text-slate-300 space-y-1">
+          <div class="text-slate-500">// Ready to heal error codes upon detection...</div>
+        </div>
+
+        <div class="flex items-center space-x-2 pt-2">
+          <button id="btnDbgHealAll" class="flex-1 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold transition">
+            Fix Error Code & Recalibrate Sensor
+          </button>
+          <button id="btnDbgClear" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition">
+            Clear Simulated Errors
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL 5: Session Analytics & Privacy Transparency -->
+  <div id="modalAnalytics" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-xl w-full shadow-2xl relative">
+      <button class="modal-close absolute top-4 right-4 text-slate-400 hover:text-white">✕</button>
+      
+      <div class="flex items-center space-x-3 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+          <i data-lucide="activity" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-bold text-white">Study Session Analytics & Privacy</h3>
+          <p class="text-xs text-slate-400">Real-time breakdown of cognitive engagement and fatigue intervals.</p>
+        </div>
+      </div>
+
+      <!-- State Distribution Bars -->
+      <div class="space-y-2.5 my-4 p-4 rounded-xl bg-slate-950 border border-slate-800">
+        <div class="flex justify-between text-xs text-slate-300">
+          <span>🌿 Relaxed (Flow State):</span>
+          <span id="statRelaxedCount" class="font-mono text-emerald-400">85%</span>
+        </div>
+        <div class="flex justify-between text-xs text-slate-300">
+          <span>💡 Surprised (Confusion Check):</span>
+          <span id="statSurprisedCount" class="font-mono text-amber-400">5%</span>
+        </div>
+        <div class="flex justify-between text-xs text-slate-300">
+          <span>⚡ Angry (Cognitive Overload):</span>
+          <span id="statAngryCount" class="font-mono text-rose-400">3%</span>
+        </div>
+        <div class="flex justify-between text-xs text-slate-300">
+          <span>💙 Sad (Needs Encouragement):</span>
+          <span id="statSadCount" class="font-mono text-blue-400">2%</span>
+        </div>
+        <div class="flex justify-between text-xs text-slate-300">
+          <span>☕ Tedious (Mental Fatigue):</span>
+          <span id="statTediousCount" class="font-mono text-purple-400">5%</span>
+        </div>
+      </div>
+
+      <!-- Privacy & Ethics Declaration -->
+      <div class="p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-xs text-indigo-200 space-y-1.5">
+        <div class="flex items-center space-x-1.5 font-semibold text-white">
+          <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
+          <span>Privacy-First & Non-Clinical Architecture</span>
+        </div>
+        <p class="text-[11px] text-slate-300 leading-relaxed">
+          FocusMind does NOT claim to diagnose mental-health conditions or clinically read emotions. 
+          The AI estimates focus, fatigue, and engagement signals from observable behavior purely to provide supportive, non-intrusive pedagogical check-ins.
+        </p>
+      </div>
+
+      <button id="btnResetSession" class="w-full mt-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition">
+        Reset Study Session
+      </button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
