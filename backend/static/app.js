@@ -1,6 +1,7 @@
 /**
  * FocusMind OLED Coding & Deep Focus Platform
- * Full Implementation with Drowsiness/Sleeping Detection & Emergency Wake-up Alarm
+ * Rebuilt Dynamic Island with Real-Time Camera Detection, Modal Expansion, and Persistent Streak Gamification
+ * Zero Manual Selectors
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -9,14 +10,25 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // =========================================================================
-  // State
+  // State & Gamification (Persisted in localStorage)
   // =========================================================================
-  let dominantEmotion = 'FOCUSED'; // 'FOCUSED' | 'HAPPY' | 'EXCITED' | 'ANXIOUS' | 'SAD' | 'SLEEPING'
+  let detectedState = 'FOCUSED'; // 'FOCUSED' | 'ENGAGED' | 'PRESENT' | 'AWAY' | 'DROWSY' | 'SLEEPING'
   let secondsRemaining = 25 * 60;
   const totalSessionSeconds = 25 * 60;
   let isTimerActive = true;
   let codeFailCount = 0;
   let isSleepingAlertActive = false;
+
+  // Real-time tracking biometrics
+  let earValue = 0.28;
+  let gazeStability = 98;
+  let presenceConfidence = 98;
+  let headPoseStatus = 'Upright (0°)';
+
+  // Streak points loaded from localStorage
+  let streakPoints = parseInt(localStorage.getItem('focusmind_streak_pts') || '450', 10);
+  let streakDays = parseInt(localStorage.getItem('focusmind_streak_days') || '5', 10);
+  let streakMultiplier = 1.0;
 
   // Web Audio Alarm Context
   let alarmAudioCtx = null;
@@ -56,7 +68,41 @@ console.log(twoSum([2, 7, 11, 15], 9));
   if (editorEl) editorEl.value = pythonCode;
 
   // =========================================================================
-  // 1. Animated Expressive Micro-Robot Companion
+  // 1. Continuous Streak Gamification System
+  // =========================================================================
+  function updateStreakDisplays() {
+    const islandDays = document.getElementById('island-streak-days');
+    const islandPts = document.getElementById('island-streak-points');
+    const hudDays = document.getElementById('hud-streak-days');
+    const hudPts = document.getElementById('hud-streak-pts');
+    const railDaysComp = document.getElementById('rail-streak-days-compact');
+    const railPtsComp = document.getElementById('rail-streak-pts-compact');
+    const railDaysExp = document.getElementById('rail-streak-days-expanded');
+    const railPtsExp = document.getElementById('rail-streak-pts-expanded');
+
+    if (islandDays) islandDays.textContent = `${streakDays}d`;
+    if (islandPts) islandPts.textContent = `${streakPoints} pts`;
+    if (hudDays) hudDays.textContent = `${streakDays} Days Consecutive`;
+    if (hudPts) hudPts.textContent = `${streakPoints} Pts (${streakMultiplier.toFixed(1)}x Multiplier)`;
+    if (railDaysComp) railDaysComp.textContent = `${streakDays}d`;
+    if (railPtsComp) railPtsComp.textContent = `${streakPoints}`;
+    if (railDaysExp) railDaysExp.textContent = `${streakDays} Days Streak`;
+    if (railPtsExp) railPtsExp.textContent = `${streakPoints} Pts (${streakMultiplier.toFixed(1)}x)`;
+  }
+
+  // Award +10 points every 30s of maintained positive state
+  setInterval(() => {
+    if (detectedState === 'FOCUSED' || detectedState === 'ENGAGED' || detectedState === 'PRESENT') {
+      streakPoints += Math.round(10 * streakMultiplier);
+      localStorage.setItem('focusmind_streak_pts', streakPoints.toString());
+      updateStreakDisplays();
+    }
+  }, 30000);
+
+  updateStreakDisplays();
+
+  // =========================================================================
+  // 2. Animated Expressive Micro-Robot Companion
   // =========================================================================
   const robotEyeLeft = document.getElementById('robot-eye-left');
   const robotEyeRight = document.getElementById('robot-eye-right');
@@ -69,9 +115,9 @@ console.log(twoSum([2, 7, 11, 15], 9));
   const robotChassis = document.getElementById('robot-chassis');
   const robotZzz = document.getElementById('robot-zzz');
 
-  // Eye blinking (only when awake)
+  // Eye blinking
   setInterval(() => {
-    if (dominantEmotion === 'SLEEPING') return;
+    if (detectedState === 'SLEEPING' || detectedState === 'DROWSY' || detectedState === 'AWAY') return;
 
     if (robotEyeLeft && robotEyeRight && robotBlinkLeft && robotBlinkRight) {
       robotEyeLeft.classList.add('hidden');
@@ -88,9 +134,9 @@ console.log(twoSum([2, 7, 11, 15], 9));
     }
   }, 3500);
 
-  // Eye tracking cursor (only when awake)
+  // Eye tracking cursor
   window.addEventListener('mousemove', (e) => {
-    if (dominantEmotion === 'SLEEPING') return;
+    if (detectedState === 'SLEEPING' || detectedState === 'DROWSY') return;
 
     const robotFeatures = document.getElementById('robot-face-features');
     if (robotFeatures) {
@@ -102,26 +148,25 @@ console.log(twoSum([2, 7, 11, 15], 9));
     }
   });
 
-  function updateRobotEmotion(emo) {
-    let color = '#06b6d4'; // Cyan for FOCUSED
+  function updateRobotAndHUD(state) {
+    detectedState = state;
+
+    let color = '#06b6d4'; // Cyan for FOCUSED / PRESENT
     let mouthPath = 'M 16 27 L 28 27'; // Neutral line
 
-    if (emo === 'SLEEPING') {
-      color = '#ef4444'; // Alert Red
-      mouthPath = 'M 20 27 A 2 2 0 1 1 24 27 A 2 2 0 1 1 20 27'; // Sleeping mouth
-    } else if (emo === 'HAPPY' || emo === 'EXCITED') {
+    if (state === 'SLEEPING' || state === 'DROWSY') {
+      color = '#ef4444'; // Red
+      mouthPath = 'M 20 27 A 2 2 0 1 1 24 27 A 2 2 0 1 1 20 27';
+    } else if (state === 'ENGAGED') {
       color = '#10b981'; // Emerald
       mouthPath = 'M 14 26 Q 22 32 30 26'; // Smile
-    } else if (emo === 'ANXIOUS') {
-      color = '#f59e0b'; // Amber
-      mouthPath = 'M 15 29 Q 22 24 29 29'; // Empathetic curve
-    } else if (emo === 'SAD') {
-      color = '#60a5fa'; // Blue
-      mouthPath = 'M 15 29 Q 22 24 29 29';
+    } else if (state === 'AWAY') {
+      color = '#a1a1aa'; // Zinc
+      mouthPath = 'M 18 28 Q 22 26 26 28';
     }
 
-    if (emo === 'SLEEPING') {
-      // Hide normal eyes, show drooping sleeping eyes
+    // Robot Eyes & Mouth
+    if (state === 'SLEEPING' || state === 'DROWSY') {
       if (robotEyeLeft) robotEyeLeft.classList.add('hidden');
       if (robotEyeRight) robotEyeRight.classList.add('hidden');
       if (robotSleepLeft) robotSleepLeft.classList.remove('hidden');
@@ -129,7 +174,6 @@ console.log(twoSum([2, 7, 11, 15], 9));
       if (robotZzz) robotZzz.classList.remove('hidden');
       if (robotChassis) robotChassis.setAttribute('stroke', '#7f1d1d');
     } else {
-      // Restore normal eyes
       if (robotEyeLeft) robotEyeLeft.classList.remove('hidden');
       if (robotEyeRight) robotEyeRight.classList.remove('hidden');
       if (robotSleepLeft) robotSleepLeft.classList.add('hidden');
@@ -143,48 +187,293 @@ console.log(twoSum([2, 7, 11, 15], 9));
     if (robotMouth) {
       robotMouth.setAttribute('stroke', color);
       robotMouth.setAttribute('d', mouthPath);
-      robotMouth.setAttribute('fill', emo === 'SLEEPING' ? '#f87171' : 'transparent');
+      robotMouth.setAttribute('fill', (state === 'SLEEPING' || state === 'DROWSY') ? '#f87171' : 'transparent');
     }
     if (robotAntenna) robotAntenna.setAttribute('fill', color);
 
-    // Update island badge
-    const labelEl = document.getElementById('island-emotion-label');
-    const btnDrop = document.getElementById('btn-emotion-dropdown');
-    if (labelEl) labelEl.textContent = `[${emo}]`;
-
-    if (btnDrop) {
-      if (emo === 'SLEEPING') {
-        btnDrop.className = 'flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider border border-red-500/50 text-red-400 bg-red-500/20 animate-pulse ring-2 ring-red-500/30 transition-all hover:scale-105 active:scale-95';
-      } else if (emo === 'HAPPY' || emo === 'EXCITED') {
-        btnDrop.className = 'flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider border border-emerald-500/30 text-emerald-400 bg-emerald-500/10 transition-all hover:scale-105 active:scale-95';
-      } else if (emo === 'ANXIOUS') {
-        btnDrop.className = 'flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider border border-amber-500/30 text-amber-400 bg-amber-500/10 transition-all hover:scale-105 active:scale-95';
-      } else if (emo === 'SAD') {
-        btnDrop.className = 'flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider border border-blue-500/30 text-blue-400 bg-blue-500/10 transition-all hover:scale-105 active:scale-95';
+    // Update Collapsed Dynamic Island Badge
+    const badgeEl = document.getElementById('island-detected-badge');
+    const hudStateLabel = document.getElementById('hud-state-label');
+    if (badgeEl) {
+      badgeEl.textContent = `[${state}]`;
+      if (state === 'SLEEPING' || state === 'DROWSY') {
+        badgeEl.className = 'px-2.5 py-1 rounded-full text-xs font-mono font-bold tracking-wider border border-red-500/50 text-red-400 bg-red-500/20 animate-pulse ring-2 ring-red-500/30';
+      } else if (state === 'ENGAGED') {
+        badgeEl.className = 'px-2.5 py-1 rounded-full text-xs font-mono font-bold tracking-wider border border-emerald-500/30 text-emerald-400 bg-emerald-500/10';
+      } else if (state === 'AWAY') {
+        badgeEl.className = 'px-2.5 py-1 rounded-full text-xs font-mono font-bold tracking-wider border border-zinc-500/30 text-zinc-400 bg-zinc-500/10';
       } else {
-        btnDrop.className = 'flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider border border-cyan-500/30 text-cyan-400 bg-cyan-500/10 transition-all hover:scale-105 active:scale-95';
+        badgeEl.className = 'px-2.5 py-1 rounded-full text-xs font-mono font-bold tracking-wider border border-cyan-500/30 text-cyan-400 bg-cyan-500/10';
       }
     }
 
-    // Update Deep Focus Orb aura
-    updateOrbAura(emo === 'SLEEPING' ? 'ANXIOUS' : emo);
-
-    // If SLEEPING, trigger Emergency Intervention
-    if (emo === 'SLEEPING') {
-      triggerEmergencySleepIntervention();
+    if (hudStateLabel) {
+      hudStateLabel.textContent = `[${state}]`;
     }
 
-    // Socratic AI Tutor notification on anxiety/stress
-    if (emo === 'ANXIOUS' || emo === 'SAD') {
-      addTutorMessage(
-        "Take a slow, deep breath. You're tackling complex constraints. What if you used a dictionary to store previously checked targets in O(1)?",
-        true
-      );
+    // Update Center Deep Focus Orb Aura
+    updateOrbAura(state);
+
+    // Emergency Sleep Intervention trigger
+    if (state === 'SLEEPING' && !isSleepingAlertActive) {
+      triggerEmergencySleepIntervention();
     }
   }
 
   // =========================================================================
-  // Phase 3: Emergency Sleeping / Drowsiness Intervention Logic
+  // 3. Click Interaction: Interactive Modal Expansion
+  // =========================================================================
+  const dynamicIsland = document.getElementById('dynamic-island');
+  const modalIslandExpanded = document.getElementById('modal-island-expanded');
+  const btnCloseIslandModal = document.getElementById('btn-close-island-modal');
+
+  if (dynamicIsland && modalIslandExpanded) {
+    dynamicIsland.addEventListener('click', () => {
+      modalIslandExpanded.classList.remove('hidden');
+      updateHUDMetrics();
+    });
+  }
+
+  if (btnCloseIslandModal && modalIslandExpanded) {
+    btnCloseIslandModal.addEventListener('click', (e) => {
+      e.stopPropagation();
+      modalIslandExpanded.classList.add('hidden');
+    });
+
+    modalIslandExpanded.addEventListener('click', (e) => {
+      if (e.target === modalIslandExpanded) {
+        modalIslandExpanded.classList.add('hidden');
+      }
+    });
+  }
+
+  function updateHUDMetrics() {
+    const valPresence = document.getElementById('hud-val-presence');
+    const valEar = document.getElementById('hud-val-ear');
+    const valGaze = document.getElementById('hud-val-gaze');
+    const valPosture = document.getElementById('hud-val-posture');
+
+    if (valPresence) valPresence.textContent = `${presenceConfidence}% Confident`;
+    if (valEar) valEar.textContent = `${earValue.toFixed(2)} ${earValue < 0.18 ? '⚠️ Drowsy' : '✓ Normal'}`;
+    if (valGaze) valGaze.textContent = `${gazeStability}% Flow`;
+    if (valPosture) valPosture.textContent = headPoseStatus;
+  }
+
+  // =========================================================================
+  // 4. Real-Time Camera Access & MediaPipe Feature Extraction
+  // =========================================================================
+  const hudPreview = document.getElementById('hud-camera-preview');
+  const bgWebcam = document.getElementById('bg-webcam');
+  const camDotStreaming = document.getElementById('cam-dot-streaming');
+  const camDotPending = document.getElementById('cam-dot-pending');
+  const camDotDenied = document.getElementById('cam-dot-denied');
+  const camOfflineBanner = document.getElementById('cam-offline-banner');
+
+  function setCameraStatus(status) {
+    if (status === 'streaming') {
+      if (camDotStreaming) camDotStreaming.classList.remove('hidden');
+      if (camDotPending) camDotPending.classList.add('hidden');
+      if (camDotDenied) camDotDenied.classList.add('hidden');
+      if (camOfflineBanner) camOfflineBanner.classList.add('hidden');
+    } else if (status === 'pending') {
+      if (camDotStreaming) camDotStreaming.classList.add('hidden');
+      if (camDotPending) camDotPending.classList.remove('hidden');
+      if (camDotPending) camDotPending.classList.add('inline-flex');
+      if (camDotDenied) camDotDenied.classList.add('hidden');
+    } else {
+      // denied or unavailable
+      if (camDotStreaming) camDotStreaming.classList.add('hidden');
+      if (camDotPending) camDotPending.classList.add('hidden');
+      if (camDotDenied) camDotDenied.classList.remove('hidden');
+      if (camDotDenied) camDotDenied.classList.add('inline-flex');
+      if (camOfflineBanner) camOfflineBanner.classList.remove('hidden');
+    }
+  }
+
+  async function startWebcamAnalysis() {
+    setCameraStatus('pending');
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setCameraStatus('unavailable');
+        return;
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+        audio: false
+      });
+
+      if (hudPreview) hudPreview.srcObject = stream;
+      if (bgWebcam) bgWebcam.srcObject = stream;
+
+      setCameraStatus('streaming');
+      initializeMediaPipe();
+    } catch (err) {
+      console.warn('Camera permission denied or unavailable:', err);
+      setCameraStatus('denied');
+    }
+  }
+
+  // Camera re-init button
+  const btnReInit = document.getElementById('btn-re-init-cam');
+  if (btnReInit) {
+    btnReInit.addEventListener('click', startWebcamAnalysis);
+  }
+
+  // MediaPipe FaceMesh
+  let consecutiveEyesClosed = 0;
+  let consecutiveNoFace = 0;
+
+  function processLandmarks(landmarks) {
+    consecutiveNoFace = 0;
+    presenceConfidence = 99;
+
+    // EAR: landmarks 159 & 145 (vertical), 33 & 133 (horizontal)
+    const p159 = landmarks[159], p145 = landmarks[145], p33 = landmarks[33], p133 = landmarks[133];
+    if (p159 && p145 && p33 && p133) {
+      const vert = Math.hypot(p159.x - p145.x, p159.y - p145.y);
+      const horiz = Math.hypot(p33.x - p133.x, p33.y - p133.y);
+      earValue = horiz > 0 ? vert / horiz : 0.28;
+
+      if (earValue < 0.18) {
+        consecutiveEyesClosed++;
+        if (consecutiveEyesClosed > 25) {
+          updateRobotAndHUD('SLEEPING');
+          return;
+        } else if (consecutiveEyesClosed > 10) {
+          updateRobotAndHUD('DROWSY');
+          return;
+        }
+      } else {
+        consecutiveEyesClosed = 0;
+      }
+    }
+
+    // Head Pose / Yaw: landmark 1 (nose tip)
+    const nose = landmarks[1];
+    if (nose) {
+      const devX = Math.abs(nose.x - 0.5);
+      const devY = Math.abs(nose.y - 0.5);
+      gazeStability = Math.max(70, Math.min(100, Math.round(100 - (devX + devY) * 50)));
+
+      if (devX > 0.22) {
+        headPoseStatus = 'Turned Away (>25°)';
+        updateRobotAndHUD('AWAY');
+      } else if (devY > 0.18) {
+        headPoseStatus = 'Slumped Down';
+        updateRobotAndHUD('DROWSY');
+      } else {
+        headPoseStatus = 'Upright (0°)';
+        // Smile elevation check: mouth corners (61, 291) vs upper lip (0)
+        const leftCorner = landmarks[61], rightCorner = landmarks[291], upperLip = landmarks[0];
+        if (leftCorner && rightCorner && upperLip && ((leftCorner.y + rightCorner.y) / 2 < upperLip.y - 0.02)) {
+          updateRobotAndHUD('ENGAGED');
+        } else {
+          updateRobotAndHUD('FOCUSED');
+        }
+      }
+    }
+
+    updateHUDMetrics();
+  }
+
+  function initializeMediaPipe() {
+    if (typeof FaceMesh === 'undefined' || !bgWebcam) return;
+    try {
+      const faceMesh = new FaceMesh({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+      });
+
+      faceMesh.setOptions({
+        maxNumFaces: 1,
+        refineLandmarks: true,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+      });
+
+      faceMesh.onResults((results) => {
+        if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+          processLandmarks(results.multiFaceLandmarks[0]);
+        } else {
+          // No face present
+          consecutiveNoFace++;
+          if (consecutiveNoFace > 15) {
+            presenceConfidence = 0;
+            headPoseStatus = 'No Face In View';
+            updateRobotAndHUD('AWAY');
+            updateHUDMetrics();
+          }
+        }
+      });
+
+      if (typeof Camera !== 'undefined') {
+        const cam = new Camera(bgWebcam, {
+          onFrame: async () => {
+            if (bgWebcam.readyState >= 2) {
+              await faceMesh.send({ image: bgWebcam });
+            }
+          },
+          width: 640,
+          height: 480
+        });
+        cam.start();
+      }
+    } catch (e) {
+      console.warn('FaceMesh initialization failed:', e);
+    }
+  }
+
+  startWebcamAnalysis();
+
+  // =========================================================================
+  // 5. Deep Focus Orb Aura Reactivity
+  // =========================================================================
+  function updateOrbAura(state) {
+    const aura = document.getElementById('orb-ambient-aura');
+    const resonator = document.getElementById('orb-resonator');
+    const cadence = document.getElementById('orb-cadence-label');
+
+    if (state === 'ENGAGED') {
+      if (aura) aura.className = 'absolute w-72 h-72 rounded-full blur-[100px] transition-all duration-1000 pointer-events-none bg-emerald-500/20';
+      if (resonator) {
+        resonator.className = 'absolute w-64 h-64 md:w-72 md:h-72 rounded-full bg-gradient-to-tr from-emerald-500/20 via-teal-500/15 to-transparent border border-white/5 backdrop-blur-2xl animate-breathe';
+        resonator.style.boxShadow = '0 0 60px rgba(16,185,129,0.25)';
+      }
+      if (cadence) {
+        cadence.textContent = 'HIGH FLOW CADENCE';
+        cadence.className = 'text-[9px] font-mono tracking-widest mt-1.5 text-emerald-300/70';
+      }
+    } else if (state === 'DROWSY' || state === 'SLEEPING') {
+      if (aura) aura.className = 'absolute w-72 h-72 rounded-full blur-[100px] transition-all duration-1000 pointer-events-none bg-amber-500/20';
+      if (resonator) {
+        resonator.className = 'absolute w-64 h-64 md:w-72 md:h-72 rounded-full bg-gradient-to-tr from-amber-500/20 via-orange-500/15 to-transparent border border-white/5 backdrop-blur-2xl animate-breathe';
+        resonator.style.boxShadow = '0 0 60px rgba(245,158,11,0.25)';
+      }
+      if (cadence) {
+        cadence.textContent = 'RESTORATIVE BREATH';
+        cadence.className = 'text-[9px] font-mono tracking-widest mt-1.5 text-amber-300/70';
+      }
+    } else if (state === 'AWAY') {
+      if (aura) aura.className = 'absolute w-72 h-72 rounded-full blur-[100px] transition-all duration-1000 pointer-events-none bg-zinc-600/20';
+      if (cadence) {
+        cadence.textContent = 'PAUSED • STANDBY';
+        cadence.className = 'text-[9px] font-mono tracking-widest mt-1.5 text-zinc-400';
+      }
+    } else {
+      if (aura) aura.className = 'absolute w-72 h-72 rounded-full blur-[100px] transition-all duration-1000 pointer-events-none bg-cyan-500/20';
+      if (resonator) {
+        resonator.className = 'absolute w-64 h-64 md:w-72 md:h-72 rounded-full bg-gradient-to-tr from-cyan-500/20 via-indigo-600/15 to-transparent border border-white/5 backdrop-blur-2xl animate-breathe';
+        resonator.style.boxShadow = '0 0 60px rgba(6,182,212,0.22)';
+      }
+      if (cadence) {
+        cadence.textContent = 'CALM CADENCE';
+        cadence.className = 'text-[9px] font-mono tracking-widest mt-1.5 text-cyan-300/60';
+      }
+    }
+  }
+
+  // =========================================================================
+  // 6. Emergency Sleep Alarm Routine
   // =========================================================================
   const modalEmergencySleep = document.getElementById('modal-emergency-sleep');
   const btnDismissAlarm = document.getElementById('btn-dismiss-alarm');
@@ -234,7 +523,7 @@ console.log(twoSum([2, 7, 11, 15], 9));
       if (alarmInterval) clearInterval(alarmInterval);
       alarmInterval = setInterval(soundBurst, 500);
     } catch (e) {
-      console.warn('Audio alarm blocked:', e);
+      console.warn('Alarm audio blocked:', e);
     }
   }
 
@@ -247,16 +536,9 @@ console.log(twoSum([2, 7, 11, 15], 9));
 
   function triggerEmergencySleepIntervention() {
     isSleepingAlertActive = true;
-
-    // 1. Show Emergency Modal
-    if (modalEmergencySleep) {
-      modalEmergencySleep.classList.remove('hidden');
-    }
-
-    // 2. Start Loud Audio Alarm locally
+    if (modalEmergencySleep) modalEmergencySleep.classList.remove('hidden');
     startLoudAlarmAudio();
 
-    // 3. Update Teacher Realtime Status Monitor
     if (teacherYouCard && teacherYouStatus && teacherNudgeContainer) {
       teacherYouCard.className = 'p-2 rounded-xl border border-red-500/50 bg-red-950/40 text-xs font-mono text-red-300 animate-pulse';
       teacherYouStatus.className = 'text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/40';
@@ -265,20 +547,17 @@ console.log(twoSum([2, 7, 11, 15], 9));
     }
     if (railSleepPing) railSleepPing.classList.remove('hidden');
 
-    // 4. Send network alert to backend endpoint
     fetch('/api/interventions/sleep-alert', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         student_id: 'learner_you',
         student_name: 'You',
-        ear_value: 0.14,
+        ear_value: earValue,
         head_pitch_slump: -22.0,
-        consecutive_drowsy_frames: 24
+        consecutive_drowsy_frames: 25
       })
-    }).then(res => res.json())
-      .then(data => console.log('Sleep emergency dispatched:', data))
-      .catch(e => console.log('Backend sync bypassed:', e));
+    }).catch(e => console.log('Sleep alert sync:', e));
 
     if (window.lucide) window.lucide.createIcons();
   }
@@ -287,11 +566,8 @@ console.log(twoSum([2, 7, 11, 15], 9));
     isSleepingAlertActive = false;
     stopAlarmAudio();
 
-    if (modalEmergencySleep) {
-      modalEmergencySleep.classList.add('hidden');
-    }
+    if (modalEmergencySleep) modalEmergencySleep.classList.add('hidden');
 
-    // Reset student status
     if (teacherYouCard && teacherYouStatus && teacherNudgeContainer) {
       teacherYouCard.className = 'p-2 rounded-xl border border-white/5 bg-white/5 text-xs font-mono text-white/80 transition-all';
       teacherYouStatus.className = 'text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400';
@@ -300,14 +576,14 @@ console.log(twoSum([2, 7, 11, 15], 9));
     }
     if (railSleepPing) railSleepPing.classList.add('hidden');
 
-    dominantEmotion = 'FOCUSED';
-    updateRobotEmotion('FOCUSED');
+    updateRobotAndHUD('FOCUSED');
   }
 
   if (btnDismissAlarm) {
     btnDismissAlarm.addEventListener('click', dismissSleepAlarm);
   }
 
+  // Teacher Remote Nudge
   const btnTeacherSendNudge = document.getElementById('btn-teacher-send-nudge');
   if (btnTeacherSendNudge) {
     btnTeacherSendNudge.addEventListener('click', () => {
@@ -321,125 +597,12 @@ console.log(twoSum([2, 7, 11, 15], 9));
         })
       }).then(() => {
         dismissSleepAlarm();
-        addTutorMessage("Your teacher sent you a gentle wake-up nudge: 'Wake up! You've got this! 🔥'", true);
-      });
-    });
-  }
-
-  // Emotion Dropdown Toggle
-  const btnEmoDrop = document.getElementById('btn-emotion-dropdown');
-  const menuEmoDrop = document.getElementById('emotion-dropdown-menu');
-  if (btnEmoDrop && menuEmoDrop) {
-    btnEmoDrop.addEventListener('click', () => {
-      menuEmoDrop.classList.toggle('hidden');
-    });
-
-    document.querySelectorAll('.btn-select-emo').forEach(b => {
-      b.addEventListener('click', () => {
-        const emo = b.getAttribute('data-emotion');
-        dominantEmotion = emo;
-        updateRobotEmotion(emo);
-        menuEmoDrop.classList.add('hidden');
       });
     });
   }
 
   // =========================================================================
-  // 2. Hidden Metric: Exact Time Reveal on Hover / Tap
-  // =========================================================================
-  const metricContainer = document.getElementById('hidden-metric-container');
-  const ambientIndicator = document.getElementById('ambient-flow-indicator');
-  const revealedTimePill = document.getElementById('revealed-time-pill');
-  const revealedTimeText = document.getElementById('revealed-time-text');
-
-  function formatMMSS(secs) {
-    const m = Math.floor(secs / 60).toString().padStart(2, '0');
-    const s = (secs % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
-  }
-
-  if (metricContainer && ambientIndicator && revealedTimePill) {
-    metricContainer.addEventListener('mouseenter', () => {
-      if (revealedTimeText) revealedTimeText.textContent = formatMMSS(secondsRemaining);
-      ambientIndicator.classList.add('hidden');
-      revealedTimePill.classList.remove('hidden');
-      revealedTimePill.classList.add('flex');
-    });
-
-    metricContainer.addEventListener('mouseleave', () => {
-      revealedTimePill.classList.add('hidden');
-      revealedTimePill.classList.remove('flex');
-      ambientIndicator.classList.remove('hidden');
-    });
-  }
-
-  // Ambient Session Tick
-  setInterval(() => {
-    if (isTimerActive && secondsRemaining > 0 && dominantEmotion !== 'SLEEPING') {
-      secondsRemaining--;
-      if (revealedTimeText) revealedTimeText.textContent = formatMMSS(secondsRemaining);
-
-      const elapsed = totalSessionSeconds - secondsRemaining;
-      const pct = elapsed / totalSessionSeconds;
-      const offset = 1005.3 - pct * 1005.3;
-      const ring = document.getElementById('orb-hairline-progress');
-      if (ring) ring.style.strokeDashoffset = offset;
-    }
-  }, 1000);
-
-  // =========================================================================
-  // 3. Center Canvas Deep Focus Orb Aura Shifts
-  // =========================================================================
-  function updateOrbAura(emo) {
-    const aura = document.getElementById('orb-ambient-aura');
-    const resonator = document.getElementById('orb-resonator');
-    const cadence = document.getElementById('orb-cadence-label');
-
-    if (emo === 'HAPPY' || emo === 'EXCITED') {
-      if (aura) aura.className = 'absolute w-72 h-72 rounded-full blur-[100px] transition-all duration-1000 pointer-events-none bg-emerald-500/20';
-      if (resonator) {
-        resonator.className = 'absolute w-64 h-64 md:w-72 md:h-72 rounded-full bg-gradient-to-tr from-emerald-500/20 via-teal-500/15 to-transparent border border-white/5 backdrop-blur-2xl animate-breathe';
-        resonator.style.boxShadow = '0 0 60px rgba(16,185,129,0.25)';
-      }
-      if (cadence) {
-        cadence.textContent = 'HIGH FLOW CADENCE';
-        cadence.className = 'text-[9px] font-mono tracking-widest mt-1.5 text-emerald-300/70';
-      }
-    } else if (emo === 'ANXIOUS') {
-      if (aura) aura.className = 'absolute w-72 h-72 rounded-full blur-[100px] transition-all duration-1000 pointer-events-none bg-amber-500/20';
-      if (resonator) {
-        resonator.className = 'absolute w-64 h-64 md:w-72 md:h-72 rounded-full bg-gradient-to-tr from-amber-500/20 via-orange-500/15 to-transparent border border-white/5 backdrop-blur-2xl animate-breathe';
-        resonator.style.boxShadow = '0 0 60px rgba(245,158,11,0.25)';
-      }
-      if (cadence) {
-        cadence.textContent = 'RESTORATIVE BREATH';
-        cadence.className = 'text-[9px] font-mono tracking-widest mt-1.5 text-amber-300/70';
-      }
-    } else if (emo === 'SAD') {
-      if (aura) aura.className = 'absolute w-72 h-72 rounded-full blur-[100px] transition-all duration-1000 pointer-events-none bg-blue-500/20';
-      if (resonator) {
-        resonator.className = 'absolute w-64 h-64 md:w-72 md:h-72 rounded-full bg-gradient-to-tr from-blue-500/20 via-indigo-500/15 to-transparent border border-white/5 backdrop-blur-2xl animate-breathe';
-        resonator.style.boxShadow = '0 0 60px rgba(59,130,246,0.25)';
-      }
-      if (cadence) {
-        cadence.textContent = 'GENTLE RECOVERY';
-        cadence.className = 'text-[9px] font-mono tracking-widest mt-1.5 text-blue-300/70';
-      }
-    } else {
-      if (aura) aura.className = 'absolute w-72 h-72 rounded-full blur-[100px] transition-all duration-1000 pointer-events-none bg-cyan-500/20';
-      if (resonator) {
-        resonator.className = 'absolute w-64 h-64 md:w-72 md:h-72 rounded-full bg-gradient-to-tr from-cyan-500/20 via-indigo-600/15 to-transparent border border-white/5 backdrop-blur-2xl animate-breathe';
-        resonator.style.boxShadow = '0 0 60px rgba(6,182,212,0.22)';
-      }
-      if (cadence) {
-        cadence.textContent = 'CALM CADENCE';
-        cadence.className = 'text-[9px] font-mono tracking-widest mt-1.5 text-cyan-300/60';
-      }
-    }
-  }
-
-  // =========================================================================
-  // 4. Right Panel: LeetCode Workspace & Code Runner
+  // 7. LeetCode Workspace & Socratic AI Tutor
   // =========================================================================
   const tabProblem = document.getElementById('tab-btn-problem');
   const tabCode = document.getElementById('tab-btn-code');
@@ -494,7 +657,7 @@ console.log(twoSum([2, 7, 11, 15], 9));
 
         const currentVal = editorEl ? editorEl.value : '';
         if (currentVal.includes('seen') && (currentVal.includes('target -') || currentVal.includes('target-'))) {
-          outputText.innerHTML = `Output: [0, 1]\nCase 1: Passed ✅ (target=9, nums=[2,7,11,15])\nCase 2: Passed ✅ (target=6, nums=[3,2,4])\nRuntime: 54ms • Memory: 15.2MB (Beats 91.4%)`;
+          outputText.innerHTML = `Output: [0, 1]\nCase 1: Passed ✅ (target=9, nums=[2,7,11,15])\nCase 2: Passed ✅ (target=6, nums=[3,2,4])\nRuntime: 54ms • Memory: 15.2MB`;
           codeFailCount = 0;
         } else {
           outputText.innerHTML = `Runtime Error: Test Case 2 failed. Expected [1, 2], got [].\nTip: Validate complement storage in map.`;
@@ -515,9 +678,7 @@ console.log(twoSum([2, 7, 11, 15], 9));
     }
   }
 
-  // =========================================================================
-  // 5. Embedded Socratic AI Tutor ("AI Bot Here")
-  // =========================================================================
+  // Socratic AI Tutor
   const tutorHeader = document.getElementById('tutor-header');
   const tutorContent = document.getElementById('tutor-content');
   const tutorChevron = document.getElementById('tutor-chevron');
@@ -588,106 +749,28 @@ console.log(twoSum([2, 7, 11, 15], 9));
   }
 
   // =========================================================================
-  // 6. Camera Popover & MediaPipe Face Mesh Landmark Engine
+  // 8. Hidden Time Metric on Hover
   // =========================================================================
-  const btnPopCamera = document.getElementById('btn-pop-camera');
-  const modalCamera = document.getElementById('modal-camera-hud');
-  const btnCloseCam = document.getElementById('btn-close-cam-modal');
-  const hudPreview = document.getElementById('hud-camera-preview');
-  const bgWebcam = document.getElementById('bg-webcam');
-
-  if (btnPopCamera && modalCamera) {
-    btnPopCamera.addEventListener('click', () => {
-      modalCamera.classList.remove('hidden');
-    });
+  function formatMMSS(secs) {
+    const m = Math.floor(secs / 60).toString().padStart(2, '0');
+    const s = (secs % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
   }
 
-  if (btnCloseCam && modalCamera) {
-    btnCloseCam.addEventListener('click', () => {
-      modalCamera.classList.add('hidden');
-    });
-  }
+  setInterval(() => {
+    if (isTimerActive && secondsRemaining > 0 && detectedState !== 'SLEEPING') {
+      secondsRemaining--;
+      const timeText = document.getElementById('revealed-time-text');
+      if (timeText) timeText.textContent = formatMMSS(secondsRemaining);
 
-  async function startBackgroundCamera() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
-        audio: false
-      });
-      if (hudPreview) hudPreview.srcObject = stream;
-      if (bgWebcam) bgWebcam.srcObject = stream;
-
-      // Initialize FaceMesh if available
-      initializeMediaPipeFaceMesh();
-    } catch (err) {
-      console.log('Camera running in synthetic mode or permission pending');
+      const elapsed = totalSessionSeconds - secondsRemaining;
+      const pct = elapsed / totalSessionSeconds;
+      const offset = 1005.3 - pct * 1005.3;
+      const ring = document.getElementById('orb-hairline-progress');
+      if (ring) ring.style.strokeDashoffset = offset;
     }
-  }
-
-  // Secondary Drowsiness Detection: Eye Aspect Ratio & Sustained Closure
-  let consecutiveClosedFrames = 0;
-  function processFaceLandmarks(pts) {
-    if (pts.length < 468) return;
-
-    // Left eye vertical distance (159 to 145) / horizontal (33 to 133)
-    const p159 = pts[159], p145 = pts[145], p33 = pts[33], p133 = pts[133];
-    if (p159 && p145 && p33 && p133) {
-      const vert = Math.hypot(p159.x - p145.x, p159.y - p145.y);
-      const horiz = Math.hypot(p33.x - p133.x, p33.y - p133.y);
-      const ear = horiz > 0 ? vert / horiz : 0.28;
-
-      if (ear < 0.18) {
-        consecutiveClosedFrames++;
-        // If eyes closed for > 25 frames (~3 seconds at 8-10fps)
-        if (consecutiveClosedFrames > 25 && dominantEmotion !== 'SLEEPING') {
-          dominantEmotion = 'SLEEPING';
-          updateRobotEmotion('SLEEPING');
-        }
-      } else {
-        consecutiveClosedFrames = 0;
-      }
-    }
-  }
-
-  function initializeMediaPipeFaceMesh() {
-    if (typeof FaceMesh === 'undefined' || !bgWebcam) return;
-    try {
-      const faceMesh = new FaceMesh({
-        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-      });
-
-      faceMesh.setOptions({
-        maxNumFaces: 1,
-        refineLandmarks: true,
-        minDetectionConfidence: 0.5,
-        minTrackingConfidence: 0.5
-      });
-
-      faceMesh.onResults((results) => {
-        if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-          processFaceLandmarks(results.multiFaceLandmarks[0]);
-        }
-      });
-
-      if (typeof Camera !== 'undefined') {
-        const camera = new Camera(bgWebcam, {
-          onFrame: async () => {
-            if (bgWebcam.readyState >= 2) {
-              await faceMesh.send({ image: bgWebcam });
-            }
-          },
-          width: 640,
-          height: 480
-        });
-        camera.start();
-      }
-    } catch (e) {
-      console.warn('FaceMesh background initialisation:', e);
-    }
-  }
-
-  startBackgroundCamera();
+  }, 1000);
 
   // Initialize Default State
-  updateRobotEmotion('FOCUSED');
+  updateRobotAndHUD('FOCUSED');
 });

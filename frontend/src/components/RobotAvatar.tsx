@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 
+export type DetectedState = 'FOCUSED' | 'ENGAGED' | 'PRESENT' | 'AWAY' | 'DROWSY' | 'HAPPY' | 'EXCITED' | 'ANXIOUS' | 'SAD' | 'SLEEPING';
+
 interface RobotAvatarProps {
-  emotion?: 'FOCUSED' | 'HAPPY' | 'EXCITED' | 'ANXIOUS' | 'SAD' | 'SLEEPING';
+  emotion?: DetectedState;
   size?: number;
 }
 
@@ -9,9 +11,9 @@ export default function RobotAvatar({ emotion = 'FOCUSED', size = 44 }: RobotAva
   const [blink, setBlink] = useState(false);
   const [eyeOffset, setEyeOffset] = useState({ x: 0, y: 0 });
 
-  // Natural spontaneous blinking interval (only when awake)
+  // Natural spontaneous blinking interval (only when awake & present)
   useEffect(() => {
-    if (emotion === 'SLEEPING') return;
+    if (emotion === 'SLEEPING' || emotion === 'DROWSY' || emotion === 'AWAY') return;
 
     const blinkInterval = setInterval(() => {
       setBlink(true);
@@ -21,16 +23,27 @@ export default function RobotAvatar({ emotion = 'FOCUSED', size = 44 }: RobotAva
     return () => clearInterval(blinkInterval);
   }, [emotion]);
 
-  // Subtle cursor tracking for robot eyes (only when awake)
+  // Subtle cursor tracking or wandering eyes
   useEffect(() => {
-    if (emotion === 'SLEEPING') {
-      setEyeOffset({ x: 0, y: 1 });
+    if (emotion === 'SLEEPING' || emotion === 'DROWSY') {
+      setEyeOffset({ x: 0, y: 1.5 });
       return;
+    }
+
+    if (emotion === 'AWAY') {
+      // Wandering looking around when user is away
+      const wander = setInterval(() => {
+        setEyeOffset({
+          x: (Math.random() - 0.5) * 4,
+          y: (Math.random() - 0.5) * 3
+        });
+      }, 1500);
+      return () => clearInterval(wander);
     }
 
     const handleMouseMove = (e: MouseEvent) => {
       const centerX = window.innerWidth / 2;
-      const centerY = 50; // Dynamic Island top zone
+      const centerY = 50;
       const deltaX = Math.max(-2.5, Math.min(2.5, (e.clientX - centerX) / 120));
       const deltaY = Math.max(-2, Math.min(2, (e.clientY - centerY) / 80));
       setEyeOffset({ x: deltaX, y: deltaY });
@@ -40,25 +53,29 @@ export default function RobotAvatar({ emotion = 'FOCUSED', size = 44 }: RobotAva
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, [emotion]);
 
-  // Eye and LED color based on emotional state
-  const eyeColor = emotion === 'HAPPY' || emotion === 'EXCITED'
+  // Eye and LED color based on detected camera state
+  const eyeColor = emotion === 'HAPPY' || emotion === 'EXCITED' || emotion === 'ENGAGED'
     ? '#10b981' // Vibrant Emerald
     : emotion === 'ANXIOUS'
       ? '#f59e0b' // Soft Amber
       : emotion === 'SAD'
         ? '#60a5fa' // Soft Blue
-        : emotion === 'SLEEPING'
-          ? '#ef4444' // Alert Red / Soft Crimson
-          : '#06b6d4'; // Cyan LED for FOCUSED
+        : emotion === 'SLEEPING' || emotion === 'DROWSY'
+          ? '#ef4444' // Alert Red / Crimson
+          : emotion === 'AWAY'
+            ? '#a1a1aa' // Muted Zinc when user is away
+            : '#06b6d4'; // Cyan LED for FOCUSED / PRESENT
 
-  // Mouth path shape depending on emotion
-  const mouthD = emotion === 'HAPPY' || emotion === 'EXCITED'
-    ? 'M 14 26 Q 22 32 30 26'
+  // Mouth path shape depending on state
+  const mouthD = emotion === 'HAPPY' || emotion === 'EXCITED' || emotion === 'ENGAGED'
+    ? 'M 14 26 Q 22 32 30 26' // Smile
     : emotion === 'ANXIOUS' || emotion === 'SAD'
-      ? 'M 15 29 Q 22 24 29 29'
-      : emotion === 'SLEEPING'
-        ? 'M 20 27 A 2 2 0 1 1 24 27 A 2 2 0 1 1 20 27' // Small open sleeping mouth
-        : 'M 16 27 L 28 27';
+      ? 'M 15 29 Q 22 24 29 29' // Empathetic curve
+      : emotion === 'SLEEPING' || emotion === 'DROWSY'
+        ? 'M 20 27 A 2 2 0 1 1 24 27 A 2 2 0 1 1 20 27' // Small open drowsy mouth
+        : emotion === 'AWAY'
+          ? 'M 18 28 Q 22 26 26 28' // Questioning neutral
+          : 'M 16 27 L 28 27'; // Focused straight line
 
   return (
     <div 
@@ -66,10 +83,17 @@ export default function RobotAvatar({ emotion = 'FOCUSED', size = 44 }: RobotAva
       style={{ width: size, height: size }}
       title={`AI Robot Companion [${emotion}]`}
     >
-      {/* Floating Zzz for SLEEPING state */}
-      {emotion === 'SLEEPING' && (
-        <div className="absolute -top-3 right-0 font-mono font-bold text-[10px] text-amber-300 animate-bounce">
+      {/* Floating Zzz for SLEEPING / DROWSY state */}
+      {(emotion === 'SLEEPING' || emotion === 'DROWSY') && (
+        <div className="absolute -top-3.5 right-0 font-mono font-bold text-[10px] text-amber-300 animate-bounce">
           Zzz...
+        </div>
+      )}
+
+      {/* Away Question Mark badge */}
+      {emotion === 'AWAY' && (
+        <div className="absolute -top-3 right-0 font-mono font-bold text-[10px] text-zinc-400 animate-pulse">
+          ?
         </div>
       )}
 
@@ -86,7 +110,7 @@ export default function RobotAvatar({ emotion = 'FOCUSED', size = 44 }: RobotAva
           cy="2" 
           r="2" 
           fill={eyeColor}
-          className={emotion === 'SLEEPING' ? 'animate-ping text-red-500' : 'animate-pulse'}
+          className={emotion === 'SLEEPING' || emotion === 'DROWSY' ? 'animate-ping' : 'animate-pulse'}
         />
 
         {/* Outer Robot Head Chassis */}
@@ -97,7 +121,7 @@ export default function RobotAvatar({ emotion = 'FOCUSED', size = 44 }: RobotAva
           height="28"
           rx="9"
           fill="#0f0f11"
-          stroke={emotion === 'SLEEPING' ? '#7f1d1d' : '#27272a'}
+          stroke={emotion === 'SLEEPING' || emotion === 'DROWSY' ? '#7f1d1d' : '#27272a'}
           strokeWidth="1.5"
         />
 
@@ -111,11 +135,10 @@ export default function RobotAvatar({ emotion = 'FOCUSED', size = 44 }: RobotAva
           fill="#000000"
         />
 
-        {/* LED Eyes with natural blinking, tracking, or SLEEPING droop */}
+        {/* LED Eyes */}
         <g transform={`translate(${eyeOffset.x}, ${eyeOffset.y})`}>
-          {emotion === 'SLEEPING' ? (
+          {emotion === 'SLEEPING' || emotion === 'DROWSY' ? (
             <>
-              {/* Drooping closed sleeping eyes */}
               <path d="M 13 19 Q 16 22 19 19" fill="transparent" stroke="#f87171" strokeWidth="2" strokeLinecap="round" />
               <path d="M 25 19 Q 28 22 31 19" fill="transparent" stroke="#f87171" strokeWidth="2" strokeLinecap="round" />
             </>
@@ -126,11 +149,9 @@ export default function RobotAvatar({ emotion = 'FOCUSED', size = 44 }: RobotAva
             </>
           ) : (
             <>
-              {/* Left Eye */}
               <circle cx="16" cy="18" r="3.2" fill={eyeColor} />
               <circle cx="15.2" cy="17" r="1" fill="#ffffff" opacity="0.9" />
               
-              {/* Right Eye */}
               <circle cx="28" cy="18" r="3.2" fill={eyeColor} />
               <circle cx="27.2" cy="17" r="1" fill="#ffffff" opacity="0.9" />
             </>
@@ -139,7 +160,7 @@ export default function RobotAvatar({ emotion = 'FOCUSED', size = 44 }: RobotAva
           {/* Expressive Mouth */}
           <path
             d={mouthD}
-            fill={emotion === 'SLEEPING' ? '#f87171' : 'transparent'}
+            fill={emotion === 'SLEEPING' || emotion === 'DROWSY' ? '#f87171' : 'transparent'}
             stroke={eyeColor}
             strokeWidth="1.8"
             strokeLinecap="round"
