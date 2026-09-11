@@ -1,35 +1,40 @@
 import React, { useState } from 'react';
-import { Activity, Flame, Trophy, Award, Sparkles, ChevronRight, ChevronLeft, ShieldCheck, Users } from 'lucide-react';
+import { Activity, Flame, Trophy, Award, Sparkles, ChevronRight, ChevronLeft, ShieldCheck, Users, AlertTriangle, Send, BellRing } from 'lucide-react';
 
 interface GeminiRailProps {
   streakDays?: number;
   points?: number;
   streakMultiplier?: number;
+  isSleepingAlertActive?: boolean;
 }
 
 export default function GeminiRail({
   streakDays = 5,
   points = 450,
-  streakMultiplier = 1.0
+  streakMultiplier = 1.0,
+  isSleepingAlertActive = false
 }: GeminiRailProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [nudgeNotification, setNudgeNotification] = useState<string | null>(null);
 
   // Activity Ring calculations (Apple Health style)
-  // Ring 1: Session Flow (88%) - Cyan
-  // Ring 2: Emotion Balance (94%) - Emerald
-  // Ring 3: Early-Return Consistency (100%) - Fuchsia
   const rings = [
     { label: 'Session Flow', val: 88, color: '#06b6d4', r: 42, circ: 263.89 },
     { label: 'Emotion Balance', val: 94, color: '#10b981', r: 32, circ: 201.06 },
     { label: 'Early-Return Cons.', val: 100, color: '#d946ef', r: 22, circ: 138.23 },
   ];
 
+  const handleTeacherNudge = (studentName: string) => {
+    setNudgeNotification(`Teacher sent wake-up nudge to ${studentName}`);
+    setTimeout(() => setNudgeNotification(null), 3000);
+  };
+
   return (
     <aside 
       onMouseEnter={() => setIsExpanded(true)}
       onMouseLeave={() => setIsExpanded(false)}
       className={`h-full bg-[#0a0a0c]/90 border-r border-white/10 backdrop-blur-2xl transition-all duration-300 ease-spring z-40 flex flex-col justify-between py-5 select-none ${
-        isExpanded ? 'w-72 px-4 shadow-2xl shadow-black/80' : 'w-16 px-2'
+        isExpanded ? 'w-80 px-4 shadow-2xl shadow-black/80' : 'w-16 px-2'
       }`}
     >
       {/* Top Brand / Toggle Area */}
@@ -56,7 +61,6 @@ export default function GeminiRail({
                 const offset = ring.circ - (ring.val / 100) * ring.circ;
                 return (
                   <React.Fragment key={i}>
-                    {/* Track */}
                     <circle
                       cx="50%"
                       cy="50%"
@@ -66,7 +70,6 @@ export default function GeminiRail({
                       strokeOpacity="0.15"
                       fill="transparent"
                     />
-                    {/* Active ring */}
                     <circle
                       cx="50%"
                       cy="50%"
@@ -115,7 +118,7 @@ export default function GeminiRail({
           <div className="p-3 rounded-2xl bg-neutral-900/60 border border-white/10 space-y-2.5 animate-fadeIn">
             <div className="text-[10px] font-mono text-white/40 uppercase tracking-wider flex items-center justify-between">
               <span>Score Board</span>
-              <span className="text-emerald-400">● Live Sync</span>
+              <span className="text-emerald-400">● Live Streak Sync</span>
             </div>
 
             <div className="flex items-center justify-between">
@@ -123,7 +126,7 @@ export default function GeminiRail({
                 <Flame className="w-4 h-4 fill-amber-400/20" />
                 <span className="font-bold text-sm font-mono">{streakDays} Days</span>
               </div>
-              <span className="text-xs font-mono text-white/40">Daily Streak</span>
+              <span className="text-xs font-mono text-white/40">Streak Master</span>
             </div>
 
             <div className="flex items-center justify-between">
@@ -137,7 +140,7 @@ export default function GeminiRail({
             </div>
 
             <div className="pt-2 border-t border-white/5 space-y-1 text-[10px] font-mono text-white/50">
-              <div>+100 pts: Full Session Completed</div>
+              <div>+100 pts: Full Session (No Sleeping)</div>
               <div>+50 pts: Early Break Return Bonus</div>
             </div>
           </div>
@@ -155,18 +158,70 @@ export default function GeminiRail({
         )}
       </div>
 
-      {/* Bottom: Teacher / Classroom Sync Badge */}
-      <div className="w-full flex flex-col items-center">
+      {/* Bottom: Teacher Realtime Status Monitor */}
+      <div className="w-full flex flex-col items-center space-y-2">
+        {nudgeNotification && isExpanded && (
+          <div className="w-full p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-[10px] font-mono">
+            {nudgeNotification}
+          </div>
+        )}
+
         {isExpanded ? (
-          <div className="w-full p-2.5 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between text-xs font-mono text-white/70">
-            <div className="flex items-center space-x-2">
-              <Users className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Teacher Room</span>
+          <div className="w-full p-3 rounded-2xl bg-neutral-900/80 border border-white/10 space-y-2 animate-fadeIn">
+            <div className="flex items-center justify-between text-[11px] font-mono text-white/40 border-b border-white/5 pb-1">
+              <div className="flex items-center space-x-1.5">
+                <Users className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Teacher Live Monitor</span>
+              </div>
+              <span className="text-emerald-400">Active</span>
             </div>
-            <span className="text-[10px] text-emerald-400">Connected</span>
+
+            {/* Current student status in Teacher view */}
+            <div className={`p-2 rounded-xl border text-xs font-mono transition-all ${
+              isSleepingAlertActive
+                ? 'bg-red-950/40 border-red-500/50 text-red-300 animate-pulse'
+                : 'bg-white/5 border-white/5 text-white/80'
+            }`}>
+              <div className="flex items-center justify-between">
+                <span className="font-bold">Student: You</span>
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                  isSleepingAlertActive
+                    ? 'bg-red-500/20 text-red-400 border border-red-500/40'
+                    : 'bg-emerald-500/20 text-emerald-400'
+                }`}>
+                  {isSleepingAlertActive ? 'SLEEPING [Notification Sent]' : 'Focusing [EAR 0.28]'}
+                </span>
+              </div>
+
+              {isSleepingAlertActive && (
+                <div className="mt-2 pt-1.5 border-t border-red-500/20 flex items-center space-x-2">
+                  <button
+                    onClick={() => handleTeacherNudge('You')}
+                    className="w-full py-1 rounded bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-[10px] text-red-200 font-bold"
+                  >
+                    Teacher: Send Remote Wake-Up Nudge
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Peer Student B */}
+            <div className="flex items-center justify-between text-[11px] font-mono text-white/60 pt-1">
+              <span>Student B (Alex): Focusing</span>
+              <span className="text-emerald-400">[EAR 0.29]</span>
+            </div>
+            <div className="flex items-center justify-between text-[11px] font-mono text-white/60">
+              <span>Student C (Elena): Focusing</span>
+              <span className="text-emerald-400">[EAR 0.27]</span>
+            </div>
           </div>
         ) : (
-          <Users className="w-4 h-4 text-white/30" />
+          <div className="relative">
+            <Users className="w-4 h-4 text-white/30" />
+            {isSleepingAlertActive && (
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+            )}
+          </div>
         )}
       </div>
     </aside>

@@ -125,3 +125,40 @@ class LessonModule(BaseModel):
     test_cases: List[Dict[str, Any]]
     clarifying_hints: List[str]
     step_by_step_breakdown: List[str]
+
+
+class SleepAlertRequest(BaseModel):
+    student_id: str = "learner_you"
+    student_name: str = "You"
+    ear_value: float = Field(0.14, description="Measured Eye Aspect Ratio below threshold")
+    head_pitch_slump: float = Field(-22.0, description="Downward head tilt")
+    consecutive_drowsy_frames: int = Field(24, description="Sustained frames eyes closed")
+    phone_number: Optional[str] = "+1 (555) 019-2834"
+
+
+class SleepAlertResponse(BaseModel):
+    status: str = "EMERGENCY_ALARM_DISPATCHED"
+    alarm_audio_frequency_hz: int = 1760
+    phone_notification_sent: bool = True
+    notification_title: str = "WAKE UP! Keep the focus streak alive! 🔥"
+    notification_body: str = "FocusMind detected sustained eye closure. Resume focus or take an early break!"
+    teacher_dashboard_flagged: bool = True
+    flagged_student_id: str
+    timestamp: float = Field(default_factory=lambda: time.time())
+
+
+class TeacherStudentStatus(BaseModel):
+    student_id: str
+    name: str
+    status: str  # "Focusing", "On Break", "Idle", "SLEEPING"
+    emotion: str  # "FOCUSED", "HAPPY", "EXCITED", "ANXIOUS", "SAD", "SLEEPING"
+    ear_value: float
+    is_sleeping_flagged: bool = False
+    last_nudge_received: Optional[str] = None
+
+
+class TeacherNudgeRequest(BaseModel):
+    student_id: str
+    nudge_type: str = "ENCOURAGEMENT"  # "WAKE_UP", "ENCOURAGEMENT", "BREATHER"
+    custom_message: Optional[str] = None
+

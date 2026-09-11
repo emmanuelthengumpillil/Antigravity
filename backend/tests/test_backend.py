@@ -152,3 +152,35 @@ def test_debugger_non_destructive_healing():
     # Crucial spec requirement: student content MUST be preserved without mutation
     assert heal_res.student_content_preserved is True
     assert heal_res.preserved_content_hash is not None
+
+
+def test_sleep_emergency_intervention():
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    client = TestClient(app)
+    response = client.post(
+        "/api/interventions/sleep-alert",
+        json={
+            "student_id": "learner_you",
+            "student_name": "You",
+            "ear_value": 0.13,
+            "head_pitch_slump": -25.0,
+            "consecutive_drowsy_frames": 28
+        }
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "EMERGENCY_ALARM_DISPATCHED"
+    assert data["phone_notification_sent"] is True
+    assert "WAKE UP" in data["notification_title"]
+    assert data["teacher_dashboard_flagged"] is True
+
+    # Check that teacher live status has the student flagged
+    teacher_res = client.get("/api/teacher/students")
+    assert teacher_res.status_code == 200
+    students = teacher_res.json()["students"]
+    you = next(s for s in students if s["name"] == "You")
+    assert you["status"] == "SLEEPING"
+    assert you["is_sleeping_flagged"] is True
+

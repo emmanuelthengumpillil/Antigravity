@@ -1,6 +1,6 @@
 /**
  * FocusMind OLED Coding & Deep Focus Platform
- * Ambient Multi-Panel Architecture & Robot Companion
+ * Full Implementation with Drowsiness/Sleeping Detection & Emergency Wake-up Alarm
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -11,11 +11,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // =========================================================================
   // State
   // =========================================================================
-  let dominantEmotion = 'FOCUSED'; // 'FOCUSED' | 'HAPPY' | 'EXCITED' | 'ANXIOUS' | 'SAD'
+  let dominantEmotion = 'FOCUSED'; // 'FOCUSED' | 'HAPPY' | 'EXCITED' | 'ANXIOUS' | 'SAD' | 'SLEEPING'
   let secondsRemaining = 25 * 60;
   const totalSessionSeconds = 25 * 60;
   let isTimerActive = true;
   let codeFailCount = 0;
+  let isSleepingAlertActive = false;
+
+  // Web Audio Alarm Context
+  let alarmAudioCtx = null;
+  let alarmInterval = null;
 
   // Code templates
   const pythonCode = `def two_sum(nums: list[int], target: int) -> list[int]:
@@ -57,11 +62,17 @@ console.log(twoSum([2, 7, 11, 15], 9));
   const robotEyeRight = document.getElementById('robot-eye-right');
   const robotBlinkLeft = document.getElementById('robot-blink-left');
   const robotBlinkRight = document.getElementById('robot-blink-right');
+  const robotSleepLeft = document.getElementById('robot-sleep-left');
+  const robotSleepRight = document.getElementById('robot-sleep-right');
   const robotMouth = document.getElementById('robot-mouth');
   const robotAntenna = document.getElementById('robot-antenna-light');
+  const robotChassis = document.getElementById('robot-chassis');
+  const robotZzz = document.getElementById('robot-zzz');
 
-  // Eye blinking
+  // Eye blinking (only when awake)
   setInterval(() => {
+    if (dominantEmotion === 'SLEEPING') return;
+
     if (robotEyeLeft && robotEyeRight && robotBlinkLeft && robotBlinkRight) {
       robotEyeLeft.classList.add('hidden');
       robotEyeRight.classList.add('hidden');
@@ -77,8 +88,10 @@ console.log(twoSum([2, 7, 11, 15], 9));
     }
   }, 3500);
 
-  // Eye tracking cursor
+  // Eye tracking cursor (only when awake)
   window.addEventListener('mousemove', (e) => {
+    if (dominantEmotion === 'SLEEPING') return;
+
     const robotFeatures = document.getElementById('robot-face-features');
     if (robotFeatures) {
       const centerX = window.innerWidth / 2;
@@ -93,7 +106,10 @@ console.log(twoSum([2, 7, 11, 15], 9));
     let color = '#06b6d4'; // Cyan for FOCUSED
     let mouthPath = 'M 16 27 L 28 27'; // Neutral line
 
-    if (emo === 'HAPPY' || emo === 'EXCITED') {
+    if (emo === 'SLEEPING') {
+      color = '#ef4444'; // Alert Red
+      mouthPath = 'M 20 27 A 2 2 0 1 1 24 27 A 2 2 0 1 1 20 27'; // Sleeping mouth
+    } else if (emo === 'HAPPY' || emo === 'EXCITED') {
       color = '#10b981'; // Emerald
       mouthPath = 'M 14 26 Q 22 32 30 26'; // Smile
     } else if (emo === 'ANXIOUS') {
@@ -104,13 +120,30 @@ console.log(twoSum([2, 7, 11, 15], 9));
       mouthPath = 'M 15 29 Q 22 24 29 29';
     }
 
+    if (emo === 'SLEEPING') {
+      // Hide normal eyes, show drooping sleeping eyes
+      if (robotEyeLeft) robotEyeLeft.classList.add('hidden');
+      if (robotEyeRight) robotEyeRight.classList.add('hidden');
+      if (robotSleepLeft) robotSleepLeft.classList.remove('hidden');
+      if (robotSleepRight) robotSleepRight.classList.remove('hidden');
+      if (robotZzz) robotZzz.classList.remove('hidden');
+      if (robotChassis) robotChassis.setAttribute('stroke', '#7f1d1d');
+    } else {
+      // Restore normal eyes
+      if (robotEyeLeft) robotEyeLeft.classList.remove('hidden');
+      if (robotEyeRight) robotEyeRight.classList.remove('hidden');
+      if (robotSleepLeft) robotSleepLeft.classList.add('hidden');
+      if (robotSleepRight) robotSleepRight.classList.add('hidden');
+      if (robotZzz) robotZzz.classList.add('hidden');
+      if (robotChassis) robotChassis.setAttribute('stroke', '#27272a');
+    }
+
     if (robotEyeLeft) robotEyeLeft.setAttribute('fill', color);
     if (robotEyeRight) robotEyeRight.setAttribute('fill', color);
-    if (robotBlinkLeft) robotBlinkLeft.setAttribute('stroke', color);
-    if (robotBlinkRight) robotBlinkRight.setAttribute('stroke', color);
     if (robotMouth) {
       robotMouth.setAttribute('stroke', color);
       robotMouth.setAttribute('d', mouthPath);
+      robotMouth.setAttribute('fill', emo === 'SLEEPING' ? '#f87171' : 'transparent');
     }
     if (robotAntenna) robotAntenna.setAttribute('fill', color);
 
@@ -120,7 +153,9 @@ console.log(twoSum([2, 7, 11, 15], 9));
     if (labelEl) labelEl.textContent = `[${emo}]`;
 
     if (btnDrop) {
-      if (emo === 'HAPPY' || emo === 'EXCITED') {
+      if (emo === 'SLEEPING') {
+        btnDrop.className = 'flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider border border-red-500/50 text-red-400 bg-red-500/20 animate-pulse ring-2 ring-red-500/30 transition-all hover:scale-105 active:scale-95';
+      } else if (emo === 'HAPPY' || emo === 'EXCITED') {
         btnDrop.className = 'flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider border border-emerald-500/30 text-emerald-400 bg-emerald-500/10 transition-all hover:scale-105 active:scale-95';
       } else if (emo === 'ANXIOUS') {
         btnDrop.className = 'flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider border border-amber-500/30 text-amber-400 bg-amber-500/10 transition-all hover:scale-105 active:scale-95';
@@ -132,7 +167,12 @@ console.log(twoSum([2, 7, 11, 15], 9));
     }
 
     // Update Deep Focus Orb aura
-    updateOrbAura(emo);
+    updateOrbAura(emo === 'SLEEPING' ? 'ANXIOUS' : emo);
+
+    // If SLEEPING, trigger Emergency Intervention
+    if (emo === 'SLEEPING') {
+      triggerEmergencySleepIntervention();
+    }
 
     // Socratic AI Tutor notification on anxiety/stress
     if (emo === 'ANXIOUS' || emo === 'SAD') {
@@ -141,6 +181,149 @@ console.log(twoSum([2, 7, 11, 15], 9));
         true
       );
     }
+  }
+
+  // =========================================================================
+  // Phase 3: Emergency Sleeping / Drowsiness Intervention Logic
+  // =========================================================================
+  const modalEmergencySleep = document.getElementById('modal-emergency-sleep');
+  const btnDismissAlarm = document.getElementById('btn-dismiss-alarm');
+  const teacherYouCard = document.getElementById('teacher-student-you-card');
+  const teacherYouStatus = document.getElementById('teacher-student-you-status');
+  const teacherNudgeContainer = document.getElementById('teacher-nudge-action-container');
+  const railSleepPing = document.getElementById('rail-compact-sleep-ping');
+
+  function startLoudAlarmAudio() {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!alarmAudioCtx && AudioCtx) {
+        alarmAudioCtx = new AudioCtx();
+      }
+      if (alarmAudioCtx && alarmAudioCtx.state === 'suspended') {
+        alarmAudioCtx.resume();
+      }
+
+      const soundBurst = () => {
+        if (!alarmAudioCtx) return;
+        const now = alarmAudioCtx.currentTime;
+        const osc1 = alarmAudioCtx.createOscillator();
+        const osc2 = alarmAudioCtx.createOscillator();
+        const gain = alarmAudioCtx.createGain();
+
+        osc1.type = 'sawtooth';
+        osc1.frequency.setValueAtTime(880, now);
+        osc1.frequency.setValueAtTime(1760, now + 0.12);
+
+        osc2.type = 'square';
+        osc2.frequency.setValueAtTime(1200, now);
+
+        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(alarmAudioCtx.destination);
+
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + 0.35);
+        osc2.stop(now + 0.35);
+      };
+
+      soundBurst();
+      if (alarmInterval) clearInterval(alarmInterval);
+      alarmInterval = setInterval(soundBurst, 500);
+    } catch (e) {
+      console.warn('Audio alarm blocked:', e);
+    }
+  }
+
+  function stopAlarmAudio() {
+    if (alarmInterval) {
+      clearInterval(alarmInterval);
+      alarmInterval = null;
+    }
+  }
+
+  function triggerEmergencySleepIntervention() {
+    isSleepingAlertActive = true;
+
+    // 1. Show Emergency Modal
+    if (modalEmergencySleep) {
+      modalEmergencySleep.classList.remove('hidden');
+    }
+
+    // 2. Start Loud Audio Alarm locally
+    startLoudAlarmAudio();
+
+    // 3. Update Teacher Realtime Status Monitor
+    if (teacherYouCard && teacherYouStatus && teacherNudgeContainer) {
+      teacherYouCard.className = 'p-2 rounded-xl border border-red-500/50 bg-red-950/40 text-xs font-mono text-red-300 animate-pulse';
+      teacherYouStatus.className = 'text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/40';
+      teacherYouStatus.textContent = 'SLEEPING [Notification Sent]';
+      teacherNudgeContainer.classList.remove('hidden');
+    }
+    if (railSleepPing) railSleepPing.classList.remove('hidden');
+
+    // 4. Send network alert to backend endpoint
+    fetch('/api/interventions/sleep-alert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        student_id: 'learner_you',
+        student_name: 'You',
+        ear_value: 0.14,
+        head_pitch_slump: -22.0,
+        consecutive_drowsy_frames: 24
+      })
+    }).then(res => res.json())
+      .then(data => console.log('Sleep emergency dispatched:', data))
+      .catch(e => console.log('Backend sync bypassed:', e));
+
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  function dismissSleepAlarm() {
+    isSleepingAlertActive = false;
+    stopAlarmAudio();
+
+    if (modalEmergencySleep) {
+      modalEmergencySleep.classList.add('hidden');
+    }
+
+    // Reset student status
+    if (teacherYouCard && teacherYouStatus && teacherNudgeContainer) {
+      teacherYouCard.className = 'p-2 rounded-xl border border-white/5 bg-white/5 text-xs font-mono text-white/80 transition-all';
+      teacherYouStatus.className = 'text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400';
+      teacherYouStatus.textContent = 'Focusing [EAR 0.28]';
+      teacherNudgeContainer.classList.add('hidden');
+    }
+    if (railSleepPing) railSleepPing.classList.add('hidden');
+
+    dominantEmotion = 'FOCUSED';
+    updateRobotEmotion('FOCUSED');
+  }
+
+  if (btnDismissAlarm) {
+    btnDismissAlarm.addEventListener('click', dismissSleepAlarm);
+  }
+
+  const btnTeacherSendNudge = document.getElementById('btn-teacher-send-nudge');
+  if (btnTeacherSendNudge) {
+    btnTeacherSendNudge.addEventListener('click', () => {
+      fetch('/api/teacher/nudge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_id: 'learner_you',
+          nudge_type: 'WAKE_UP',
+          custom_message: "Wake up! You've got this! 🔥"
+        })
+      }).then(() => {
+        dismissSleepAlarm();
+        addTutorMessage("Your teacher sent you a gentle wake-up nudge: 'Wake up! You've got this! 🔥'", true);
+      });
+    });
   }
 
   // Emotion Dropdown Toggle
@@ -190,13 +373,12 @@ console.log(twoSum([2, 7, 11, 15], 9));
     });
   }
 
-  // Ambient Session Tick (imperceptible perimeter ring progression, NO NUMERIC DIGITS in center)
+  // Ambient Session Tick
   setInterval(() => {
-    if (isTimerActive && secondsRemaining > 0) {
+    if (isTimerActive && secondsRemaining > 0 && dominantEmotion !== 'SLEEPING') {
       secondsRemaining--;
       if (revealedTimeText) revealedTimeText.textContent = formatMMSS(secondsRemaining);
 
-      // Hairline progress circumference = 2 * PI * 160 = 1005.3
       const elapsed = totalSessionSeconds - secondsRemaining;
       const pct = elapsed / totalSessionSeconds;
       const offset = 1005.3 - pct * 1005.3;
@@ -381,7 +563,6 @@ console.log(twoSum([2, 7, 11, 15], 9));
     const q = tutorInput.value.trim();
     tutorInput.value = '';
 
-    // Add user message
     const userMsg = document.createElement('div');
     userMsg.className = 'p-2.5 rounded-xl bg-cyan-950/30 border border-cyan-500/30 text-cyan-200 ml-6 text-right leading-relaxed animate-fadeIn';
     userMsg.innerHTML = `<p>${q}</p>`;
@@ -407,7 +588,7 @@ console.log(twoSum([2, 7, 11, 15], 9));
   }
 
   // =========================================================================
-  // 6. Camera Popover & MediaPipe Background Telemetry
+  // 6. Camera Popover & MediaPipe Face Mesh Landmark Engine
   // =========================================================================
   const btnPopCamera = document.getElementById('btn-pop-camera');
   const modalCamera = document.getElementById('modal-camera-hud');
@@ -435,13 +616,78 @@ console.log(twoSum([2, 7, 11, 15], 9));
       });
       if (hudPreview) hudPreview.srcObject = stream;
       if (bgWebcam) bgWebcam.srcObject = stream;
+
+      // Initialize FaceMesh if available
+      initializeMediaPipeFaceMesh();
     } catch (err) {
       console.log('Camera running in synthetic mode or permission pending');
     }
   }
 
+  // Secondary Drowsiness Detection: Eye Aspect Ratio & Sustained Closure
+  let consecutiveClosedFrames = 0;
+  function processFaceLandmarks(pts) {
+    if (pts.length < 468) return;
+
+    // Left eye vertical distance (159 to 145) / horizontal (33 to 133)
+    const p159 = pts[159], p145 = pts[145], p33 = pts[33], p133 = pts[133];
+    if (p159 && p145 && p33 && p133) {
+      const vert = Math.hypot(p159.x - p145.x, p159.y - p145.y);
+      const horiz = Math.hypot(p33.x - p133.x, p33.y - p133.y);
+      const ear = horiz > 0 ? vert / horiz : 0.28;
+
+      if (ear < 0.18) {
+        consecutiveClosedFrames++;
+        // If eyes closed for > 25 frames (~3 seconds at 8-10fps)
+        if (consecutiveClosedFrames > 25 && dominantEmotion !== 'SLEEPING') {
+          dominantEmotion = 'SLEEPING';
+          updateRobotEmotion('SLEEPING');
+        }
+      } else {
+        consecutiveClosedFrames = 0;
+      }
+    }
+  }
+
+  function initializeMediaPipeFaceMesh() {
+    if (typeof FaceMesh === 'undefined' || !bgWebcam) return;
+    try {
+      const faceMesh = new FaceMesh({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+      });
+
+      faceMesh.setOptions({
+        maxNumFaces: 1,
+        refineLandmarks: true,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+      });
+
+      faceMesh.onResults((results) => {
+        if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+          processFaceLandmarks(results.multiFaceLandmarks[0]);
+        }
+      });
+
+      if (typeof Camera !== 'undefined') {
+        const camera = new Camera(bgWebcam, {
+          onFrame: async () => {
+            if (bgWebcam.readyState >= 2) {
+              await faceMesh.send({ image: bgWebcam });
+            }
+          },
+          width: 640,
+          height: 480
+        });
+        camera.start();
+      }
+    } catch (e) {
+      console.warn('FaceMesh background initialisation:', e);
+    }
+  }
+
   startBackgroundCamera();
 
-  // Initialize
+  // Initialize Default State
   updateRobotEmotion('FOCUSED');
 });

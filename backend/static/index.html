@@ -44,29 +44,30 @@
       style="box-shadow: 0 10px 30px rgba(0,0,0,0.9), 0 0 15px rgba(255,255,255,0.02);"
     >
       <!-- 1. Interactive Robot Companion (Left) -->
-      <div id="robot-avatar-container" class="flex items-center cursor-pointer" title="AI Robot Companion">
+      <div id="robot-avatar-container" class="relative flex items-center cursor-pointer" title="AI Robot Companion">
+        <span id="robot-zzz" class="hidden absolute -top-3.5 right-0 font-mono font-bold text-[10px] text-amber-300 animate-bounce">Zzz...</span>
         <svg id="robot-svg" viewBox="0 0 44 44" width="42" height="42" class="transform transition-transform duration-300 hover:scale-105">
-          <!-- Antenna -->
           <line x1="22" y1="2" x2="22" y2="8" stroke="#52525b" stroke-width="2" stroke-linecap="round" />
           <circle id="robot-antenna-light" cx="22" cy="2" r="2" fill="#06b6d4" class="animate-pulse" />
 
-          <!-- Head Chassis -->
-          <rect x="6" y="8" width="32" height="28" rx="9" fill="#0f0f11" stroke="#27272a" stroke-width="1.5" />
-          <!-- Visor -->
+          <rect id="robot-chassis" x="6" y="8" width="32" height="28" rx="9" fill="#0f0f11" stroke="#27272a" stroke-width="1.5" />
           <rect x="9" y="11" width="26" height="22" rx="6" fill="#000000" />
 
-          <!-- Eyes & Mouth Group -->
           <g id="robot-face-features">
-            <!-- Eyes -->
+            <!-- Normal Awake Eyes -->
             <circle id="robot-eye-left" cx="16" cy="18" r="3.2" fill="#06b6d4" />
             <circle id="robot-eye-left-glint" cx="15.2" cy="17" r="1" fill="#ffffff" opacity="0.9" />
 
             <circle id="robot-eye-right" cx="28" cy="18" r="3.2" fill="#06b6d4" />
             <circle id="robot-eye-right-glint" cx="27.2" cy="17" r="1" fill="#ffffff" opacity="0.9" />
 
-            <!-- Blinking Eye Lines (hidden by default) -->
+            <!-- Blinking Eye Lines -->
             <line id="robot-blink-left" x1="13" y1="18" x2="19" y2="18" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" class="hidden" />
             <line id="robot-blink-right" x1="25" y1="18" x2="31" y2="18" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" class="hidden" />
+
+            <!-- Drooping Sleepy Eyes (shown when SLEEPING) -->
+            <path id="robot-sleep-left" d="M 13 19 Q 16 22 19 19" fill="transparent" stroke="#f87171" stroke-width="2" stroke-linecap="round" class="hidden" />
+            <path id="robot-sleep-right" d="M 25 19 Q 28 22 31 19" fill="transparent" stroke="#f87171" stroke-width="2" stroke-linecap="round" class="hidden" />
 
             <!-- Mouth -->
             <path id="robot-mouth" d="M 16 27 L 28 27" fill="transparent" stroke="#06b6d4" stroke-width="1.8" stroke-linecap="round" class="transition-all duration-300" />
@@ -74,27 +75,32 @@
         </svg>
       </div>
 
-      <!-- Separator -->
       <div class="w-px h-6 bg-white/10"></div>
 
-      <!-- 2. Dominant State Badge -->
+      <!-- 2. Dominant State Badge & Emergency Alert Indicator -->
       <div class="relative">
         <button 
           id="btn-emotion-dropdown"
           class="flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider border border-cyan-500/30 text-cyan-400 bg-cyan-500/10 transition-all hover:scale-105 active:scale-95"
-          title="Click to test emotional states"
+          title="Click to test emotional and sleeping states"
         >
           <span id="island-emotion-label">[FOCUSED]</span>
           <i data-lucide="chevron-down" class="w-3 h-3 opacity-60"></i>
         </button>
 
         <!-- Dropdown Menu -->
-        <div id="emotion-dropdown-menu" class="hidden absolute top-10 left-0 w-36 py-1.5 rounded-2xl bg-neutral-950 border border-white/15 shadow-2xl z-50">
+        <div id="emotion-dropdown-menu" class="hidden absolute top-10 left-0 w-44 py-1.5 rounded-2xl bg-neutral-950 border border-white/15 shadow-2xl z-50 animate-fadeIn">
+          <div class="px-3 py-1 text-[10px] font-mono text-white/40 uppercase border-b border-white/5">Focus States</div>
           <button data-emotion="FOCUSED" class="btn-select-emo w-full text-left px-3 py-1 text-xs font-mono text-cyan-400 hover:bg-white/10 font-bold">[FOCUSED]</button>
           <button data-emotion="HAPPY" class="btn-select-emo w-full text-left px-3 py-1 text-xs font-mono text-emerald-400 hover:bg-white/10">[HAPPY]</button>
           <button data-emotion="EXCITED" class="btn-select-emo w-full text-left px-3 py-1 text-xs font-mono text-fuchsia-400 hover:bg-white/10">[EXCITED]</button>
           <button data-emotion="ANXIOUS" class="btn-select-emo w-full text-left px-3 py-1 text-xs font-mono text-amber-400 hover:bg-white/10">[ANXIOUS]</button>
           <button data-emotion="SAD" class="btn-select-emo w-full text-left px-3 py-1 text-xs font-mono text-blue-400 hover:bg-white/10">[SAD]</button>
+          
+          <div class="border-t border-white/10 my-1"></div>
+          <button data-emotion="SLEEPING" class="btn-select-emo w-full text-left px-3 py-1.5 text-xs font-mono text-red-400 hover:bg-red-500/10 font-bold flex items-center space-x-1">
+            <span>⚠️ [SLEEPING] Trigger Alarm</span>
+          </button>
         </div>
       </div>
 
@@ -133,7 +139,7 @@
     <!-- ======================================================================= -->
     <!-- 1. Left: Collapsible Gemini-Style Rail (Activity Rings + Score Board)     -->
     <!-- ======================================================================= -->
-    <aside id="gemini-rail" class="h-full bg-[#0a0a0c]/90 border-r border-white/10 backdrop-blur-2xl transition-all duration-300 ease-spring z-40 flex flex-col justify-between py-5 w-16 px-2 hover:w-72 hover:px-4 shadow-2xl">
+    <aside id="gemini-rail" class="h-full bg-[#0a0a0c]/90 border-r border-white/10 backdrop-blur-2xl transition-all duration-300 ease-spring z-40 flex flex-col justify-between py-5 w-16 px-2 hover:w-80 hover:px-4 shadow-2xl">
       <!-- Top Brand & Activity Rings -->
       <div class="flex flex-col items-center space-y-4">
         <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500/20 via-cyan-500/20 to-emerald-500/20 border border-white/10 flex items-center justify-center text-cyan-400">
@@ -144,15 +150,12 @@
         <div class="flex flex-col items-center justify-center pt-2">
           <div class="relative w-28 h-28 flex items-center justify-center">
             <svg class="w-28 h-28 transform -rotate-90">
-              <!-- Ring 1: Session Flow (88%) - Cyan -->
               <circle cx="50%" cy="50%" r="42" stroke="#06b6d4" stroke-width="5" stroke-opacity="0.15" fill="transparent" />
               <circle cx="50%" cy="50%" r="42" stroke="#06b6d4" stroke-width="5" stroke-dasharray="263.89" stroke-dashoffset="31.6" stroke-linecap="round" fill="transparent" />
 
-              <!-- Ring 2: Emotion Balance (94%) - Emerald -->
               <circle cx="50%" cy="50%" r="32" stroke="#10b981" stroke-width="5" stroke-opacity="0.15" fill="transparent" />
               <circle cx="50%" cy="50%" r="32" stroke="#10b981" stroke-width="5" stroke-dasharray="201.06" stroke-dashoffset="12.06" stroke-linecap="round" fill="transparent" />
 
-              <!-- Ring 3: Early Return (100%) - Fuchsia -->
               <circle cx="50%" cy="50%" r="22" stroke="#d946ef" stroke-width="5" stroke-opacity="0.15" fill="transparent" />
               <circle cx="50%" cy="50%" r="22" stroke="#d946ef" stroke-width="5" stroke-dasharray="138.23" stroke-dashoffset="0" stroke-linecap="round" fill="transparent" />
             </svg>
@@ -185,7 +188,6 @@
 
       <!-- Center: Streak Score Board -->
       <div class="w-full space-y-3">
-        <!-- Compact icon view -->
         <div class="rail-compact-content flex flex-col items-center space-y-3 text-white/40">
           <div class="flex flex-col items-center text-amber-400">
             <i data-lucide="flame" class="w-4 h-4"></i>
@@ -197,11 +199,10 @@
           </div>
         </div>
 
-        <!-- Expanded details view -->
         <div class="rail-expanded-content hidden p-3 rounded-2xl bg-neutral-900/60 border border-white/10 space-y-2.5">
           <div class="text-[10px] font-mono text-white/40 uppercase tracking-wider flex items-center justify-between">
             <span>Score Board</span>
-            <span class="text-emerald-400">● Live Sync</span>
+            <span class="text-emerald-400">● Live Streak Sync</span>
           </div>
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-2 text-amber-400">
@@ -216,23 +217,52 @@
             </div>
           </div>
           <div class="pt-2 border-t border-white/5 text-[10px] font-mono text-white/50 space-y-1">
-            <div>+100 pts: Full Session Completed</div>
+            <div>+100 pts: Full Session (No Sleeping)</div>
             <div>+50 pts: Early Break Return Bonus</div>
           </div>
         </div>
       </div>
 
-      <!-- Bottom Teacher Badge -->
-      <div class="w-full flex flex-col items-center">
-        <div class="rail-compact-content">
+      <!-- Bottom: Teacher Realtime Status Monitor (With Sleeping Red Flags!) -->
+      <div class="w-full flex flex-col items-center space-y-2">
+        <div class="rail-compact-content relative">
           <i data-lucide="users" class="w-4 h-4 text-white/30"></i>
+          <span id="rail-compact-sleep-ping" class="hidden absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
         </div>
-        <div class="rail-expanded-content hidden w-full p-2.5 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between text-xs font-mono text-white/70">
-          <div class="flex items-center space-x-2">
-            <i data-lucide="users" class="w-3.5 h-3.5 text-indigo-400"></i>
-            <span>Teacher Room</span>
+
+        <div class="rail-expanded-content hidden w-full p-3 rounded-2xl bg-neutral-900/80 border border-white/10 space-y-2">
+          <div class="flex items-center justify-between text-[11px] font-mono text-white/40 border-b border-white/5 pb-1">
+            <div class="flex items-center space-x-1.5">
+              <i data-lucide="users" class="w-3.5 h-3.5 text-indigo-400"></i>
+              <span>Teacher Live Monitor</span>
+            </div>
+            <span class="text-emerald-400">Connected</span>
           </div>
-          <span class="text-[10px] text-emerald-400">Connected</span>
+
+          <!-- Current student status in Teacher view -->
+          <div id="teacher-student-you-card" class="p-2 rounded-xl border border-white/5 bg-white/5 text-xs font-mono text-white/80 transition-all">
+            <div class="flex items-center justify-between">
+              <span class="font-bold">Student: You</span>
+              <span id="teacher-student-you-status" class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400">
+                Focusing [EAR 0.28]
+              </span>
+            </div>
+
+            <div id="teacher-nudge-action-container" class="hidden mt-2 pt-1.5 border-t border-red-500/20">
+              <button id="btn-teacher-send-nudge" class="w-full py-1 rounded bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-[10px] text-red-200 font-bold">
+                Teacher: Send Remote Wake-Up Nudge
+              </button>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between text-[11px] font-mono text-white/60 pt-1">
+            <span>Student B (Alex): Focusing</span>
+            <span class="text-emerald-400">[EAR 0.29]</span>
+          </div>
+          <div class="flex items-center justify-between text-[11px] font-mono text-white/60">
+            <span>Student C (Elena): Focusing</span>
+            <span class="text-emerald-400">[EAR 0.27]</span>
+          </div>
         </div>
       </div>
     </aside>
@@ -241,23 +271,17 @@
     <!-- 2. Center: Ambient "Deep Focus" Space (Zero Countdown Timers)             -->
     <!-- ======================================================================= -->
     <main class="flex-1 flex flex-col items-center justify-center relative p-6 overflow-hidden bg-gradient-to-b from-black via-[#040407] to-black">
-      <!-- Soft Aura Glow Shift -->
       <div id="orb-ambient-aura" class="absolute w-72 h-72 rounded-full blur-[100px] transition-all duration-1000 pointer-events-none bg-cyan-500/20"></div>
 
-      <!-- Concentric Breathing Siri/Apple Health Orb -->
       <div class="relative flex items-center justify-center">
-        <!-- Hairline Perimeter Ring (Imperceptible, ambient session progress) -->
         <svg class="w-80 h-80 md:w-96 md:h-96 transform -rotate-90">
           <circle cx="50%" cy="50%" r="160" stroke="currentColor" stroke-width="1.5" fill="transparent" class="text-white/5" />
           <circle id="orb-hairline-progress" cx="50%" cy="50%" r="160" stroke="currentColor" stroke-width="1.5" stroke-dasharray="1005.3" stroke-dashoffset="653.4" stroke-linecap="round" fill="transparent" class="stroke-cyan-400/40 transition-all duration-1000 ease-linear" />
         </svg>
 
-        <!-- Outer Breathing Resonator -->
         <div id="orb-resonator" class="absolute w-64 h-64 md:w-72 md:h-72 rounded-full bg-gradient-to-tr from-cyan-500/20 via-indigo-600/15 to-transparent border border-white/5 backdrop-blur-2xl animate-breathe" style="box-shadow: 0 0 60px rgba(6,182,212,0.22);"></div>
 
-        <!-- Mid Harmonic Layer -->
         <div class="absolute w-48 h-48 md:w-56 md:h-56 rounded-full bg-[#0a0a0a]/90 border border-white/10 flex items-center justify-center shadow-inner">
-          <!-- Core Nucleus: Centered typography, ZERO countdown numbers -->
           <div class="w-32 h-32 md:w-36 md:h-36 rounded-full bg-black flex flex-col items-center justify-center p-3 text-center border border-white/5 shadow-2xl">
             <span class="text-[10px] font-mono tracking-[0.3em] uppercase text-white/40 mb-1">FLOW STATE</span>
             <span class="text-sm md:text-base font-semibold tracking-[0.25em] text-white/90 drop-shadow">DEEP FOCUS</span>
@@ -266,7 +290,6 @@
         </div>
       </div>
 
-      <!-- Ambient Rhythmic Subtitle -->
       <div class="mt-8 flex items-center space-x-2 text-white/30 text-xs font-mono tracking-widest uppercase">
         <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
         <span>4-Second Rhythmic Cycle</span>
@@ -277,10 +300,7 @@
     <!-- 3. Right: LeetCode-Style Split Pane + Adaptive Socratic AI Tutor         -->
     <!-- ======================================================================= -->
     <aside class="w-[450px] lg:w-[500px] h-full border-l border-white/10 bg-[#070709]/80 backdrop-blur-xl flex flex-col overflow-hidden p-3 space-y-3">
-      
-      <!-- Upper Problem & Code Editor Pane -->
       <div class="flex-1 bg-[#0a0a0c] border border-white/10 rounded-2xl flex flex-col overflow-hidden shadow-2xl">
-        <!-- Control Bar -->
         <div class="px-4 py-2.5 bg-neutral-950 border-b border-white/10 flex items-center justify-between">
           <div class="flex items-center space-x-2">
             <button id="tab-btn-problem" class="flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-medium text-white/40 hover:text-white hover:bg-white/5 transition-all">
@@ -306,7 +326,6 @@
           </div>
         </div>
 
-        <!-- Problem Tab Content (Hidden by default) -->
         <div id="pane-problem" class="hidden p-4 space-y-3 overflow-y-auto text-xs text-white/80 leading-relaxed font-sans">
           <div class="flex items-center justify-between pb-2 border-b border-white/10">
             <h3 class="text-sm font-bold text-white tracking-tight">1. Two Sum</h3>
@@ -314,7 +333,7 @@
           </div>
           <p>Given an array of integers <code class="text-cyan-300 font-mono">nums</code> and an integer <code class="text-cyan-300 font-mono">target</code>, return indices of the two numbers such that they add up to target.</p>
           <div class="bg-neutral-900/60 p-2.5 rounded-xl border border-white/5 space-y-1 font-mono text-[11px]">
-            <div class="text-white/40">Example 1:</div>
+            <div className="text-white/40">Example 1:</div>
             <div>Input: nums = [2,7,11,15], target = 9</div>
             <div class="text-emerald-400">Output: [0,1] (nums[0] + nums[1] == 9)</div>
           </div>
@@ -325,12 +344,10 @@
           </div>
         </div>
 
-        <!-- Code Editor Area -->
         <div id="pane-code" class="flex-1 flex flex-col p-2 bg-[#000000]">
           <textarea id="code-editor" spellcheck="false" class="flex-1 w-full bg-transparent text-white/90 font-mono text-xs p-2 resize-none focus:outline-none leading-relaxed selection:bg-cyan-500/20"></textarea>
         </div>
 
-        <!-- Execution Output Terminal -->
         <div id="pane-output" class="hidden p-3 bg-black/95 border-t border-white/10 font-mono text-[11px] text-white/80 space-y-1">
           <div class="flex items-center justify-between text-white/40 pb-1 border-b border-white/5">
             <span class="flex items-center space-x-1">
@@ -343,7 +360,7 @@
         </div>
       </div>
 
-      <!-- Lower Embedded Socratic AI Tutor Drawer ("AI Bot Here") -->
+      <!-- Lower Embedded Socratic AI Tutor Drawer -->
       <div class="w-full bg-[#0d0d10] border border-white/10 rounded-2xl flex flex-col overflow-hidden shadow-xl">
         <div id="tutor-header" class="px-4 py-2.5 bg-neutral-950/90 border-b border-white/10 flex items-center justify-between cursor-pointer hover:bg-neutral-900/60 transition-colors">
           <div class="flex items-center space-x-2">
@@ -371,8 +388,73 @@
           </div>
         </div>
       </div>
-
     </aside>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- Phase 3: Emergency Sleep Intervention Modal                               -->
+  <!-- ========================================================================= -->
+  <div id="modal-emergency-sleep" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-xl p-4 animate-fadeIn select-none">
+    <div class="absolute inset-0 bg-red-950/25 animate-pulse pointer-events-none"></div>
+
+    <div class="relative w-full max-w-lg rounded-3xl bg-neutral-950 border-2 border-red-500/60 p-6 md:p-8 shadow-2xl shadow-red-950/80 space-y-6 text-center">
+      <div class="mx-auto w-20 h-20 rounded-full bg-red-500/20 border-2 border-red-500 flex items-center justify-center text-red-400 animate-bounce shadow-lg shadow-red-500/40">
+        <i data-lucide="bell-ring" class="w-10 h-10 animate-spin" style="animation-duration: 3s;"></i>
+      </div>
+
+      <div class="space-y-2">
+        <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-red-500/20 border border-red-500/40 text-red-300 text-xs font-mono font-bold tracking-widest uppercase">
+          <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
+          <span>Drowsiness / Sleep Detected</span>
+        </div>
+        <h2 class="text-2xl md:text-3xl font-black tracking-tight text-white">WAKE UP!</h2>
+        <p class="text-xs md:text-sm text-white/70 max-w-sm mx-auto leading-relaxed">
+          EAR dropped to <span id="alarm-ear-val" class="font-mono text-red-400 font-bold">0.14</span> (eyes closed &gt; 3.0s). Loud wake-up alarm engaged!
+        </p>
+      </div>
+
+      <!-- Realtime Phone Push Notification Simulation -->
+      <div class="bg-neutral-900/90 border border-white/10 rounded-2xl p-3.5 text-left space-y-2 shadow-inner">
+        <div class="flex items-center justify-between text-[11px] font-mono text-white/40 border-b border-white/5 pb-1.5">
+          <div class="flex items-center space-x-1.5">
+            <i data-lucide="smartphone" class="w-3.5 h-3.5 text-cyan-400"></i>
+            <span>Mobile Phone Push Notification Sent</span>
+          </div>
+          <span class="text-emerald-400">● Delivered Now</span>
+        </div>
+
+        <div class="flex items-start space-x-3 pt-1">
+          <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-red-500 flex items-center justify-center text-white flex-shrink-0">
+            <i data-lucide="flame" class="w-4 h-4 fill-white"></i>
+          </div>
+          <div class="space-y-0.5">
+            <div class="text-xs font-bold text-white flex items-center space-x-1">
+              <span>FocusMind Companion</span>
+              <span class="text-[10px] text-white/40 font-normal">Just now</span>
+            </div>
+            <p class="text-xs text-amber-300 font-medium">
+              WAKE UP! Keep the focus streak alive! 🔥
+            </p>
+            <p class="text-[11px] text-white/50">
+              Teacher room has been notified. Tap to confirm you are awake.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Teacher Portal Alert Banner -->
+      <div class="flex items-center justify-between px-3 py-2 rounded-xl bg-red-950/30 border border-red-500/20 text-xs font-mono text-red-300">
+        <span class="flex items-center space-x-2">
+          <i data-lucide="alert-triangle" class="w-4 h-4 text-red-400"></i>
+          <span>Teacher Portal: Student Flagged</span>
+        </span>
+        <span class="text-red-400 font-bold">[Notification Sent]</span>
+      </div>
+
+      <button id="btn-dismiss-alarm" class="w-full py-3.5 px-6 rounded-2xl bg-white text-black font-bold text-sm tracking-wide hover:bg-neutral-200 transition-all active:scale-[0.98] shadow-xl shadow-white/10">
+        I'm Awake! Silence Alarm & Resume Focus
+      </button>
+    </div>
   </div>
 
   <!-- Pop Camera Vision Modal -->

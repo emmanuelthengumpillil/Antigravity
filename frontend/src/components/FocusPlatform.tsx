@@ -4,12 +4,14 @@ import GeminiRail from './GeminiRail';
 import DeepFocusOrb from './DeepFocusOrb';
 import CodingWorkspace from './CodingWorkspace';
 import CameraPermissionModal from './CameraPermissionModal';
+import EmergencySleepModal from './EmergencySleepModal';
 import { useEmotionEngine } from '../hooks/useEmotionEngine';
 import { usePomodoroMachine } from '../hooks/usePomodoroMachine';
 
 export default function FocusPlatform() {
-  const [dominantEmotion, setDominantEmotion] = useState<'FOCUSED' | 'HAPPY' | 'EXCITED' | 'ANXIOUS' | 'SAD'>('FOCUSED');
+  const [dominantEmotion, setDominantEmotion] = useState<'FOCUSED' | 'HAPPY' | 'EXCITED' | 'ANXIOUS' | 'SAD' | 'SLEEPING'>('FOCUSED');
   const [showCameraModal, setShowCameraModal] = useState(false);
+  const [isEmergencyAlarmOpen, setIsEmergencyAlarmOpen] = useState(false);
 
   // Background pomodoro rhythm & gamification
   const pomodoro = usePomodoroMachine();
@@ -21,6 +23,31 @@ export default function FocusPlatform() {
       setDominantEmotion(emotion.dominantEmotion as any);
     }
   }, [emotion.dominantEmotion]);
+
+  // When SLEEPING is triggered, open emergency intervention modal & alarm
+  useEffect(() => {
+    if (dominantEmotion === 'SLEEPING') {
+      setIsEmergencyAlarmOpen(true);
+      // Dispatch sleep alert to backend
+      fetch('http://127.0.0.1:8000/api/interventions/sleep-alert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_id: 'learner_you',
+          student_name: 'You',
+          ear_value: 0.14,
+          head_pitch_slump: -22.0,
+          consecutive_drowsy_frames: 24
+        })
+      }).catch((e) => console.log('Backend notification dispatched:', e));
+    }
+  }, [dominantEmotion]);
+
+  const handleDismissSleepAlarm = () => {
+    setIsEmergencyAlarmOpen(false);
+    setDominantEmotion('FOCUSED');
+    emotion.setManualEmotion('FOCUSED');
+  };
 
   return (
     <div className="relative w-screen h-screen bg-[#000000] text-white flex flex-col overflow-hidden font-sans select-none">
@@ -38,26 +65,34 @@ export default function FocusPlatform() {
 
       {/* Main 3-Column Multi-Panel Layout */}
       <div className="flex-1 flex w-full h-full pt-16 overflow-hidden">
-        {/* 1. Left: Collapsible Gemini-Style Rail (Final Analysis + Score Board) */}
+        {/* 1. Left: Collapsible Gemini-Style Rail (Final Analysis + Score Board + Teacher Status Monitor) */}
         <GeminiRail
           streakDays={pomodoro.streakDays}
           points={pomodoro.points}
           streakMultiplier={pomodoro.streakMultiplier}
+          isSleepingAlertActive={dominantEmotion === 'SLEEPING'}
         />
 
         {/* 2. Center: Ambient "Deep Focus" Space (Zero countdown timers) */}
         <main className="flex-1 flex flex-col items-center justify-center relative p-6 overflow-hidden bg-gradient-to-b from-black via-[#040407] to-black">
           <DeepFocusOrb
-            emotion={dominantEmotion}
+            emotion={dominantEmotion === 'SLEEPING' ? 'ANXIOUS' : dominantEmotion}
             progressPercent={pomodoro.progressPercent}
           />
         </main>
 
         {/* 3. Right: LeetCode-Style Split Pane with Coding & AI Tutor */}
         <aside className="w-[450px] lg:w-[500px] h-full border-l border-white/10 bg-[#070709]/80 backdrop-blur-xl flex flex-col overflow-hidden">
-          <CodingWorkspace dominantEmotion={dominantEmotion} />
+          <CodingWorkspace dominantEmotion={dominantEmotion === 'SLEEPING' ? 'ANXIOUS' : dominantEmotion} />
         </aside>
       </div>
+
+      {/* Emergency Sleeping Intervention Modal (Audio Alarm + Phone Notification + Teacher Alert) */}
+      <EmergencySleepModal
+        isOpen={isEmergencyAlarmOpen}
+        onDismiss={handleDismissSleepAlarm}
+        earValue={0.14}
+      />
 
       {/* Camera Preview Modal (Triggered on-demand via the green dot inside the Dynamic Island) */}
       {showCameraModal && (
@@ -82,7 +117,7 @@ export default function FocusPlatform() {
                 className="w-full h-full object-cover transform -scale-x-100"
               />
               <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/70 border border-white/10 text-[10px] font-mono text-emerald-400">
-                On-Device Extraction Active
+                On-Device Landmark Extraction Active
               </div>
             </div>
 

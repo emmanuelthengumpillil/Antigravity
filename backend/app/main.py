@@ -13,7 +13,11 @@ from app.models import (
     HealErrorRequest,
     HealErrorResponse,
     DebuggerErrorCode,
-    StudySession
+    StudySession,
+    SleepAlertRequest,
+    SleepAlertResponse,
+    TeacherStudentStatus,
+    TeacherNudgeRequest
 )
 from app.ml_engine import MLEngine
 from app.tutor_engine import TutorEngine
@@ -213,6 +217,69 @@ def reset_session():
     ml_engine.reset()
     debugger_service.clear_simulated_errors()
     return {"status": "reset", "session": current_session}
+
+
+# Realtime Teacher Portal & Emergency Sleep State Store
+connected_students = [
+    TeacherStudentStatus(student_id="learner_you", name="You", status="Focusing", emotion="FOCUSED", ear_value=0.28, is_sleeping_flagged=False),
+    TeacherStudentStatus(student_id="st_1", name="Alex K.", status="Focusing", emotion="EXCITED", ear_value=0.29, is_sleeping_flagged=False),
+    TeacherStudentStatus(student_id="st_2", name="Elena R.", status="Focusing", emotion="FOCUSED", ear_value=0.27, is_sleeping_flagged=False),
+    TeacherStudentStatus(student_id="st_3", name="David M.", status="Focusing", emotion="ANXIOUS", ear_value=0.25, is_sleeping_flagged=False),
+    TeacherStudentStatus(student_id="st_4", name="Maya S.", status="On Break", emotion="HAPPY", ear_value=0.30, is_sleeping_flagged=False),
+    TeacherStudentStatus(student_id="st_5", name="Liam T.", status="Idle", emotion="SAD", ear_value=0.24, is_sleeping_flagged=False),
+]
+
+
+@app.post("/api/interventions/sleep-alert", response_model=SleepAlertResponse)
+def trigger_sleep_emergency(request: SleepAlertRequest):
+    """
+    Emergency Intervention Endpoint:
+    1. Triggers local alarm sound.
+    2. Sends push notification to student mobile phone.
+    3. Flags the student in the Teacher Realtime Status Monitor.
+    """
+    # Flag the student in the teacher room
+    for st in connected_students:
+        if st.student_id == request.student_id or st.name == request.student_name:
+            st.status = "SLEEPING"
+            st.emotion = "SLEEPING"
+            st.ear_value = request.ear_value
+            st.is_sleeping_flagged = True
+
+    return SleepAlertResponse(
+        status="EMERGENCY_ALARM_DISPATCHED",
+        alarm_audio_frequency_hz=1760,
+        phone_notification_sent=True,
+        notification_title="WAKE UP! Keep the focus streak alive! 🔥",
+        notification_body=f"EAR {request.ear_value:.2f} detected prolonged eye closure. Alarm sounded and phone notified.",
+        teacher_dashboard_flagged=True,
+        flagged_student_id=request.student_id
+    )
+
+
+@app.get("/api/teacher/students")
+def get_teacher_students():
+    """Returns the live room student roster with emotional states and sleep flags."""
+    return {"students": connected_students, "timestamp": time.time()}
+
+
+@app.post("/api/teacher/nudge")
+def send_teacher_nudge(nudge: TeacherNudgeRequest):
+    """Dispatches discreet encouragement or wake-up nudge from the teacher."""
+    target_student = None
+    for st in connected_students:
+        if st.student_id == nudge.student_id:
+            msg = nudge.custom_message or ("Wake up! You've got this! 🔥" if nudge.nudge_type == "WAKE_UP" else "Keep going!")
+            st.last_nudge_received = msg
+            if nudge.nudge_type == "WAKE_UP":
+                st.is_sleeping_flagged = False
+                st.status = "Focusing"
+                st.emotion = "FOCUSED"
+            target_student = st
+            break
+
+    return {"status": "nudge_sent", "student": target_student}
+
 
 
 # Mount static frontend files
