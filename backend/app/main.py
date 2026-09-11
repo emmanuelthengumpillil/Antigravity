@@ -588,12 +588,13 @@ async def send_room_chat_message(room_code: str, req: SendRoomMessageRequest):
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
 
+    user_text = req.query_text
     # 1. Store User message
     user_msg = RoomChatMessage(
         sender="user",
         author_name=req.author_name,
         mode=room.active_mode,
-        text=req.text,
+        text=user_text,
         device_id=req.device_id
     )
     room.chat_history.append(user_msg)
@@ -602,7 +603,7 @@ async def send_room_chat_message(room_code: str, req: SendRoomMessageRequest):
     ai_raw = tutor_engine.generate_dual_mode_reply(
         mode=room.active_mode,
         topic=room.current_topic,
-        user_message=req.text,
+        user_message=user_text,
         chat_history=[m.model_dump() for m in room.chat_history],
         user_code=req.user_code or room.shared_code
     )
@@ -620,6 +621,8 @@ async def send_room_chat_message(room_code: str, req: SendRoomMessageRequest):
     await room_manager.broadcast(room.room_code, "new_chat_message", {
         "user_message": user_msg.model_dump(),
         "ai_message": ai_msg.model_dump(),
+        "reply": ai_msg.text,
+        "provider": ai_raw.get("provider", "FocusMind AI"),
         "active_mode": room.active_mode
     })
 
@@ -627,6 +630,9 @@ async def send_room_chat_message(room_code: str, req: SendRoomMessageRequest):
         "status": "success",
         "user_message": user_msg,
         "ai_message": ai_msg,
+        "reply": ai_msg.text,
+        "provider": ai_raw.get("provider", "FocusMind AI"),
+        "persona_note": ai_raw.get("persona_note", ""),
         "active_mode": room.active_mode
     }
 

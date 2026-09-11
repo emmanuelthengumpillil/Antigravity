@@ -762,7 +762,7 @@ console.log(twoSum([2, 7, 11, 15], 9));
     tutorChat.scrollTop = tutorChat.scrollHeight;
   }
 
-  function addTutorMessage(text, isHint = false, role = 'assistant') {
+  function addTutorMessage(text, isHint = false, role = 'assistant', provider = '') {
     if (!tutorChat) return;
     const msg = document.createElement('div');
     if (role === 'user') {
@@ -783,9 +783,10 @@ console.log(twoSum([2, 7, 11, 15], 9));
         ? 'p-2.5 rounded-xl bg-indigo-950/30 border border-indigo-500/30 text-indigo-200/90 leading-relaxed animate-fadeIn'
         : 'p-2.5 rounded-xl bg-white/5 border border-white/10 text-white/80 leading-relaxed animate-fadeIn';
       
+      const providerLabel = provider ? `<span class="ml-auto text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-mono font-normal">${provider}</span>` : '';
       const badge = isSam
-        ? '<div class="text-[10px] text-indigo-400 font-mono mb-1 font-bold">🧠 Sam (Learner):</div>'
-        : '<div class="text-[10px] text-cyan-400 font-mono mb-1 font-bold">🎓 Teacher Bot:</div>';
+        ? `<div class="flex items-center justify-between text-[10px] text-indigo-400 font-mono mb-1 font-bold"><span>🧠 Sam (Learner):</span>${providerLabel}</div>`
+        : `<div class="flex items-center justify-between text-[10px] text-cyan-400 font-mono mb-1 font-bold"><span>🎓 Teacher Bot:</span>${providerLabel}</div>`;
 
       msg.innerHTML = `${badge}<p class="whitespace-pre-wrap">${text}</p>`;
     }
@@ -815,7 +816,9 @@ console.log(twoSum([2, 7, 11, 15], 9));
         });
         if (res.ok) {
           const data = await res.json();
-          addTutorMessage(data.reply);
+          const replyText = data.reply || (data.ai_message ? data.ai_message.text : '');
+          const provider = data.provider || '';
+          addTutorMessage(replyText, false, 'assistant', provider);
           return;
         }
       }
@@ -1487,11 +1490,14 @@ console.log(twoSum([2, 7, 11, 15], 9));
       roomWs.onmessage = (evt) => {
         try {
           const msg = JSON.parse(evt.data);
-          if (msg.type === 'CHAT_MESSAGE') {
-            if (msg.payload && msg.payload.reply) {
-              addTutorMessage(msg.payload.reply);
+          if (msg.type === 'CHAT_MESSAGE' || msg.type === 'new_chat_message') {
+            const payload = msg.payload || {};
+            const replyText = payload.reply || (payload.ai_message ? payload.ai_message.text : '');
+            const provider = payload.provider || '';
+            if (replyText) {
+              addTutorMessage(replyText, false, 'assistant', provider);
             }
-          } else if (msg.type === 'MODE_CHANGED') {
+          } else if (msg.type === 'MODE_CHANGED' || msg.type === 'mode_toggled') {
             if (msg.payload && msg.payload.mode && msg.payload.mode !== tutorCurrentMode) {
               updateTutorModeUI(msg.payload.mode, false);
               addSystemNotice(`Synchronized: Mode switched to ${msg.payload.mode === 'TEACHER' ? 'Teacher Bot' : 'Student Bot (Feynman)'}`);

@@ -272,8 +272,13 @@ class JoinRoomRequest(BaseModel):
 class SendRoomMessageRequest(BaseModel):
     device_id: Optional[str] = None
     author_name: str = "You"
-    text: str
+    text: Optional[str] = None
+    message: Optional[str] = None
     user_code: Optional[str] = None
+
+    @property
+    def query_text(self) -> str:
+        return (self.text or self.message or "").strip()
 
 
 class ToggleRoomModeRequest(BaseModel):

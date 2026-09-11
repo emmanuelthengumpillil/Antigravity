@@ -17,11 +17,12 @@ export default function AITutor({
   roomCode = 'FM-1001'
 }: AITutorProps) {
   const [activeMode, setActiveMode] = useState<'TEACHER' | 'STUDENT'>('TEACHER');
-  const [messages, setMessages] = useState<{ role: 'ai' | 'user' | 'system'; author?: string; text: string; hint?: boolean }[]>([
+  const [messages, setMessages] = useState<{ role: 'ai' | 'user' | 'system'; author?: string; text: string; hint?: boolean; provider?: string }[]>([
     {
       role: 'ai',
       author: 'FocusMind Master Educator',
-      text: "Hello! I'm your Teacher Bot. I observe your code and focus rhythm. How can I help you master Two Sum today?"
+      provider: 'Gemini AI Agent',
+      text: "Hello! I'm your Teacher Bot powered by Gemini. I observe your code and focus rhythm. How can I help you master Two Sum today?"
     }
   ]);
   const [inputVal, setInputVal] = useState('');
@@ -64,6 +65,7 @@ export default function AITutor({
           {
             role: 'ai',
             author: activeMode === 'TEACHER' ? 'FocusMind Master Educator' : 'Sam (Inquisitive Learner)',
+            provider: 'Gemini AI Agent',
             text: activeMode === 'TEACHER'
               ? "Take a calm breath. You're working through a challenging constraint. Consider: what if you used a hash map to look up complements in O(1) instead of nested loops?"
               : "Don't worry, this looks tricky! Can we step back and explain the simplest possible example together?",
@@ -99,9 +101,10 @@ export default function AITutor({
           ...prev,
           {
             role: 'ai',
-            author: data.ai_message.author_name,
-            text: data.ai_message.text,
-            hint: data.ai_message.hint
+            author: data.ai_message ? data.ai_message.author_name : (activeMode === 'TEACHER' ? 'FocusMind Master Educator' : 'Sam (Inquisitive Learner)'),
+            provider: data.provider || 'Gemini AI Agent',
+            text: data.reply || (data.ai_message ? data.ai_message.text : ''),
+            hint: data.ai_message ? data.ai_message.hint : false
           }
         ]);
         return;
@@ -217,8 +220,15 @@ export default function AITutor({
                   }`}
                 >
                   <div className="flex items-center justify-between text-[10px] font-mono text-white/40 mb-1">
-                    <span>{m.role === 'ai' ? m.author : 'You (Instructor)'}</span>
-                    {m.hint && <span className="text-amber-400 font-bold">● Socratic Step</span>}
+                    <span className="font-semibold">{m.role === 'ai' ? m.author : 'You (Instructor)'}</span>
+                    <div className="flex items-center space-x-1.5">
+                      {m.provider && (
+                        <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+                          {m.provider}
+                        </span>
+                      )}
+                      {m.hint && <span className="text-amber-400 font-bold">● Socratic Step</span>}
+                    </div>
                   </div>
                   <p className="leading-relaxed whitespace-pre-wrap">{m.text}</p>
                 </div>
