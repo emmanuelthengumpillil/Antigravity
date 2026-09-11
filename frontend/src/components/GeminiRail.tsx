@@ -6,8 +6,21 @@ interface GeminiRailProps {
   points?: number;
   streakMultiplier?: number;
   isSleepingAlertActive?: boolean;
+  stateTimes?: {
+    focused: number;
+    engaged: number;
+    present: number;
+    drowsy: number;
+    away: number;
+  };
   onOpenZoomModal?: () => void;
   onOpenSyncModal?: () => void;
+}
+
+function formatMMSS(secs: number = 0) {
+  const m = Math.floor(secs / 60).toString().padStart(2, '0');
+  const s = (secs % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
 }
 
 export default function GeminiRail({
@@ -15,6 +28,7 @@ export default function GeminiRail({
   points = 450,
   streakMultiplier = 1.0,
   isSleepingAlertActive = false,
+  stateTimes = { focused: 1240, engaged: 820, present: 150, drowsy: 45, away: 60 },
   onOpenZoomModal,
   onOpenSyncModal
 }: GeminiRailProps) {
@@ -111,6 +125,54 @@ export default function GeminiRail({
                   <span className="font-bold text-white/90">{ring.val}%</span>
                 </div>
               ))}
+
+              {/* Working Live Time In Each State of Mind Panel */}
+              <div className="w-full mt-3 pt-2 border-t border-white/5 space-y-1.5">
+                <div className="text-[10px] font-mono text-white/40 uppercase tracking-wider pb-1 flex items-center justify-between">
+                  <span>Time in States of Mind</span>
+                  <span className="text-[9px] text-emerald-400">● Live Active</span>
+                </div>
+                
+                <div className="p-1.5 rounded-xl bg-cyan-950/20 border border-cyan-500/20 flex items-center justify-between text-[11px] font-mono">
+                  <div className="flex items-center space-x-1.5">
+                    <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
+                    <span className="text-white/80">Deep Focus</span>
+                  </div>
+                  <span className="text-cyan-300 font-bold">{formatMMSS(stateTimes.focused)}</span>
+                </div>
+
+                <div className="p-1.5 rounded-xl bg-emerald-950/20 border border-emerald-500/20 flex items-center justify-between text-[11px] font-mono">
+                  <div className="flex items-center space-x-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span className="text-white/80">Engaged / Flow</span>
+                  </div>
+                  <span className="text-emerald-300 font-bold">{formatMMSS(stateTimes.engaged)}</span>
+                </div>
+
+                <div className="p-1.5 rounded-xl bg-indigo-950/20 border border-indigo-500/20 flex items-center justify-between text-[11px] font-mono">
+                  <div className="flex items-center space-x-1.5">
+                    <span className="w-2 h-2 rounded-full bg-indigo-400"></span>
+                    <span className="text-white/80">Present Calm</span>
+                  </div>
+                  <span className="text-indigo-300 font-bold">{formatMMSS(stateTimes.present)}</span>
+                </div>
+
+                <div className="p-1.5 rounded-xl bg-amber-950/20 border border-amber-500/20 flex items-center justify-between text-[11px] font-mono">
+                  <div className="flex items-center space-x-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                    <span className="text-white/80">Drowsy / Fatigue</span>
+                  </div>
+                  <span className="text-amber-300 font-bold">{formatMMSS(stateTimes.drowsy)}</span>
+                </div>
+
+                <div className="p-1.5 rounded-xl bg-zinc-900/60 border border-zinc-700/30 flex items-center justify-between text-[11px] font-mono">
+                  <div className="flex items-center space-x-1.5">
+                    <span className="w-2 h-2 rounded-full bg-zinc-400"></span>
+                    <span className="text-white/60">Away / Paused</span>
+                  </div>
+                  <span className="text-zinc-400 font-bold">{formatMMSS(stateTimes.away)}</span>
+                </div>
+              </div>
             </div>
           )}
         </div>

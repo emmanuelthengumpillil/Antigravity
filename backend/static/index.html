@@ -151,6 +151,19 @@
       <div id="hidden-metric-container" class="hidden md:flex items-center pl-1">
         <span id="revealed-time-text" class="text-[11px] font-mono text-cyan-300">24:48</span>
       </div>
+
+      <div class="w-px h-6 bg-white/10"></div>
+
+      <!-- User Profile Avatar & Face Lock Button -->
+      <div class="flex items-center">
+        <button id="btn-open-profile-modal" class="relative group flex items-center justify-center focus:outline-none" title="User Profile & Face Lock Tracking">
+          <div id="island-profile-avatar-placeholder" class="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-500/30 to-indigo-500/30 border border-cyan-500/40 flex items-center justify-center text-cyan-300 text-xs font-mono font-bold overflow-hidden shadow-sm group-hover:border-cyan-400 transition-all">
+            <i data-lucide="user" class="w-4 h-4 text-cyan-300"></i>
+          </div>
+          <img id="island-profile-avatar-img" src="" alt="Profile" class="hidden w-8 h-8 rounded-full object-cover border border-cyan-400 shadow-sm" />
+          <span id="island-face-lock-dot" class="hidden absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-black" title="Target Person Lock Active"></span>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -167,36 +180,77 @@
         </div>
 
         <div class="flex flex-col items-center justify-center pt-2">
+          <!-- Flow State Concentric Activity Rings -->
           <div class="relative w-28 h-28 flex items-center justify-center">
             <svg class="w-28 h-28 transform -rotate-90">
+              <!-- Outer Ring: Deep Focus (Cyan) -->
               <circle cx="50%" cy="50%" r="42" stroke="#06b6d4" stroke-width="5" stroke-opacity="0.15" fill="transparent" />
-              <circle cx="50%" cy="50%" r="42" stroke="#06b6d4" stroke-width="5" stroke-dasharray="263.89" stroke-dashoffset="31.6" stroke-linecap="round" fill="transparent" />
+              <circle id="ring-flow-focused" cx="50%" cy="50%" r="42" stroke="#06b6d4" stroke-width="5" stroke-dasharray="263.89" stroke-dashoffset="0" stroke-linecap="round" fill="transparent" class="transition-all duration-700 ease-out" />
 
+              <!-- Middle Ring: Engaged Flow (Emerald) -->
               <circle cx="50%" cy="50%" r="32" stroke="#10b981" stroke-width="5" stroke-opacity="0.15" fill="transparent" />
-              <circle cx="50%" cy="50%" r="32" stroke="#10b981" stroke-width="5" stroke-dasharray="201.06" stroke-dashoffset="12.06" stroke-linecap="round" fill="transparent" />
+              <circle id="ring-flow-engaged" cx="50%" cy="50%" r="32" stroke="#10b981" stroke-width="5" stroke-dasharray="201.06" stroke-dashoffset="0" stroke-linecap="round" fill="transparent" class="transition-all duration-700 ease-out" />
 
-              <circle cx="50%" cy="50%" r="22" stroke="#d946ef" stroke-width="5" stroke-opacity="0.15" fill="transparent" />
-              <circle cx="50%" cy="50%" r="22" stroke="#d946ef" stroke-width="5" stroke-dasharray="138.23" stroke-dashoffset="0" stroke-linecap="round" fill="transparent" />
+              <!-- Inner Ring: Drowsy / Restorative (Amber) -->
+              <circle cx="50%" cy="50%" r="22" stroke="#f59e0b" stroke-width="5" stroke-opacity="0.15" fill="transparent" />
+              <circle id="ring-flow-drowsy" cx="50%" cy="50%" r="22" stroke="#f59e0b" stroke-width="5" stroke-dasharray="138.23" stroke-dashoffset="0" stroke-linecap="round" fill="transparent" class="transition-all duration-700 ease-out" />
             </svg>
-            <div class="absolute flex flex-col items-center justify-center text-center">
-              <span class="text-[9px] font-mono text-white/50">FLOW</span>
-              <span class="text-xs font-bold font-mono text-cyan-400">94%</span>
+            <div class="absolute flex flex-col items-center justify-center text-center pointer-events-none">
+              <span class="text-[9px] font-mono text-white/50 uppercase tracking-wider">FLOW</span>
+              <span id="rail-flow-score" class="text-xs font-bold font-mono text-cyan-400">96%</span>
             </div>
           </div>
 
-          <div class="rail-expanded-content hidden w-full mt-3 space-y-1.5">
-            <div class="text-[10px] font-mono text-white/40 uppercase tracking-wider pb-1 border-b border-white/5">Final Analysis Rings</div>
-            <div class="flex items-center justify-between text-[11px] font-mono">
-              <span class="text-white/70">● Session Flow</span>
-              <span class="text-cyan-400 font-bold">88%</span>
+          <!-- Working Live Time In Each State of Mind Panel -->
+          <div class="rail-expanded-content hidden w-full mt-3 space-y-2">
+            <div class="text-[10px] font-mono text-white/40 uppercase tracking-wider pb-1 border-b border-white/5 flex items-center justify-between">
+              <span>Time in States of Mind</span>
+              <span class="text-[9px] text-emerald-400">● Live Active</span>
             </div>
-            <div class="flex items-center justify-between text-[11px] font-mono">
-              <span class="text-white/70">● Emotion Balance</span>
-              <span class="text-emerald-400 font-bold">94%</span>
+            
+            <!-- Focused State Time -->
+            <div class="p-1.5 rounded-xl bg-cyan-950/20 border border-cyan-500/20 flex items-center justify-between text-[11px] font-mono">
+              <div class="flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                <span class="text-white/80">Deep Focus</span>
+              </div>
+              <span id="state-time-focused" class="text-cyan-300 font-bold">00:00</span>
             </div>
-            <div class="flex items-center justify-between text-[11px] font-mono">
-              <span class="text-white/70">● Early-Return Cons.</span>
-              <span class="text-fuchsia-400 font-bold">100%</span>
+
+            <!-- Engaged State Time -->
+            <div class="p-1.5 rounded-xl bg-emerald-950/20 border border-emerald-500/20 flex items-center justify-between text-[11px] font-mono">
+              <div class="flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span class="text-white/80">Engaged / Flow</span>
+              </div>
+              <span id="state-time-engaged" class="text-emerald-300 font-bold">00:00</span>
+            </div>
+
+            <!-- Present / Idle State Time -->
+            <div class="p-1.5 rounded-xl bg-indigo-950/20 border border-indigo-500/20 flex items-center justify-between text-[11px] font-mono">
+              <div class="flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+                <span class="text-white/80">Present Calm</span>
+              </div>
+              <span id="state-time-present" class="text-indigo-300 font-bold">00:00</span>
+            </div>
+
+            <!-- Drowsy / Fatigued State Time -->
+            <div class="p-1.5 rounded-xl bg-amber-950/20 border border-amber-500/20 flex items-center justify-between text-[11px] font-mono">
+              <div class="flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                <span class="text-white/80">Drowsy / Fatigue</span>
+              </div>
+              <span id="state-time-drowsy" class="text-amber-300 font-bold">00:00</span>
+            </div>
+
+            <!-- Away / Absent State Time -->
+            <div class="p-1.5 rounded-xl bg-zinc-900/60 border border-zinc-700/30 flex items-center justify-between text-[11px] font-mono">
+              <div class="flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded-full bg-zinc-400"></span>
+                <span class="text-white/60">Away / Paused</span>
+              </div>
+              <span id="state-time-away" class="text-zinc-400 font-bold">00:00</span>
             </div>
           </div>
         </div>
@@ -812,6 +866,80 @@
           Generate New Room
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 5. User Profile Photo & Face-Lock Tracking Modal                         -->
+  <!-- ========================================================================= -->
+  <div id="modal-user-profile" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn select-none">
+    <div class="w-full max-w-md rounded-3xl bg-neutral-950 border border-white/15 p-6 shadow-2xl space-y-5">
+      <div class="flex items-center justify-between pb-3 border-b border-white/10">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+            <i data-lucide="user-check" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white tracking-tight">Student Profile & Biometric Lock</h3>
+            <p class="text-[11px] text-white/40 font-mono">Personalized Attention & Target Face Lock</p>
+          </div>
+        </div>
+        <button id="btn-close-profile-modal" class="p-1 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-colors">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Photo Upload & Preview Container -->
+      <div class="flex flex-col items-center space-y-3">
+        <div class="relative group">
+          <div id="profile-modal-preview-placeholder" class="w-24 h-24 rounded-full bg-neutral-900 border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-white/40 hover:border-cyan-400/60 transition-all cursor-pointer overflow-hidden shadow-inner">
+            <i data-lucide="camera" class="w-6 h-6 mb-1 text-white/30"></i>
+            <span class="text-[10px] font-mono">Upload Photo</span>
+          </div>
+          <img id="profile-modal-preview-img" src="" alt="Profile" class="hidden w-24 h-24 rounded-full object-cover border-2 border-cyan-400 shadow-xl" />
+          <input type="file" id="input-profile-photo" accept="image/*" class="hidden" />
+        </div>
+        <div class="flex items-center space-x-2">
+          <button id="btn-trigger-upload-photo" class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-xs text-white font-mono flex items-center space-x-1.5 transition-all">
+            <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+            <span>Choose Image</span>
+          </button>
+          <button id="btn-remove-profile-photo" class="hidden px-2.5 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-xs text-red-400 font-mono transition-all">
+            Remove
+          </button>
+        </div>
+      </div>
+
+      <!-- User Name Field -->
+      <div class="space-y-1.5">
+        <label class="text-[11px] font-mono text-white/60">Learner Name</label>
+        <input id="input-profile-name" type="text" value="You" placeholder="Enter student name..." class="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-white/30 font-sans focus:outline-none focus:border-cyan-500/50">
+      </div>
+
+      <!-- Target Person Only Tracking Toggle -->
+      <div class="p-3.5 rounded-2xl bg-neutral-900/70 border border-white/10 space-y-2">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="scan-face" class="w-4 h-4 text-emerald-400"></i>
+            <span class="text-xs font-semibold text-white">Target Person Only Lock</span>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="toggle-target-person-only" class="sr-only peer">
+            <div class="w-9 h-5 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+          </label>
+        </div>
+        <p class="text-[11px] text-white/50 leading-relaxed">
+          When toggled ON, the AI tracking engine filters out passersby or background persons, tracking only the calibrated profile face geometry. If another face enters the frame, focus tracking ignores them.
+        </p>
+        <div id="target-person-status-banner" class="hidden text-[10px] font-mono text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
+          ● Calibrated Biometric Lock Active
+        </div>
+      </div>
+
+      <!-- Save Button -->
+      <button id="btn-save-profile" class="w-full py-2.5 rounded-xl bg-white text-black font-bold text-xs hover:bg-neutral-200 transition-all shadow-md">
+        Save Profile & Apply Biometrics
+      </button>
     </div>
   </div>
 

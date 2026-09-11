@@ -22,6 +22,37 @@ document.addEventListener('DOMContentLoaded', () => {
   let hasDispatchedDrowsyAlert = false;
   const DROWSY_NOTIFICATION_THRESHOLD_SEC = 60; // 1 minute of sustained drowsiness
 
+  // =========================================================================
+  // Live State-of-Mind Time Tracking Counters (In Seconds)
+  // =========================================================================
+  const stateTimes = {
+    FOCUSED: parseInt(localStorage.getItem('fm_time_focused') || '0', 10),
+    ENGAGED: parseInt(localStorage.getItem('fm_time_engaged') || '0', 10),
+    PRESENT: parseInt(localStorage.getItem('fm_time_present') || '0', 10),
+    DROWSY: parseInt(localStorage.getItem('fm_time_drowsy') || '0', 10),
+    AWAY: parseInt(localStorage.getItem('fm_time_away') || '0', 10),
+    SLEEPING: 0
+  };
+
+  // Profile & Face-Lock Biometric Calibration State
+  let userProfile = {
+    name: localStorage.getItem('fm_profile_name') || 'You',
+    photoUrl: localStorage.getItem('fm_profile_photo') || '',
+    targetPersonOnly: localStorage.getItem('fm_target_person_only') === 'true',
+    calibratedFaceRatio: parseFloat(localStorage.getItem('fm_calibrated_ratio') || '0') // face aspect ratio signature
+  };
+
+  // Vibration helper with cross-browser fallback
+  function triggerHapticVibration(pattern = [200, 100, 200]) {
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate(pattern);
+      } catch (err) {
+        console.warn('Vibration blocked or unsupported:', err);
+      }
+    }
+  }
+
   // Real-time tracking biometrics
   let earValue = 0.28;
   let gazeStability = 98;
@@ -93,16 +124,76 @@ console.log(twoSum([2, 7, 11, 15], 9));
     if (railPtsExp) railPtsExp.textContent = `${streakPoints} Pts (${streakMultiplier.toFixed(1)}x)`;
   }
 
-  // Award +10 points every 30s of maintained positive state
-  setInterval(() => {
-    if (detectedState === 'FOCUSED' || detectedState === 'ENGAGED' || detectedState === 'PRESENT') {
-      streakPoints += Math.round(10 * streakMultiplier);
-      localStorage.setItem('focusmind_streak_pts', streakPoints.toString());
-      updateStreakDisplays();
-    }
-  }, 30000);
+  function formatDurationMMSS(secs) {
+    const m = Math.floor(secs / 60).toString().padStart(2, '0');
+    const s = (secs % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  }
 
-  updateStreakDisplays();
+  function updateFlowStateAndMindTimes() {
+    // 1. Update text counters for each mental state
+    const elFocused = document.getElementById('state-time-focused');
+    const elEngaged = document.getElementById('state-time-engaged');
+    const elPresent = document.getElementById('state-time-present');
+    const elDrowsy = document.getElementById('state-time-drowsy');
+    const elAway = document.getElementById('state-time-away');
+
+    if (elFocused) elFocused.textContent = formatDurationMMSS(stateTimes.FOCUSED);
+    if (elEngaged) elEngaged.textContent = formatDurationMMSS(stateTimes.ENGAGED);
+    if (elPresent) elPresent.textContent = formatDurationMMSS(stateTimes.PRESENT);
+    if (elDrowsy) elDrowsy.textContent = formatDurationMMSS(stateTimes.DROWSY + stateTimes.SLEEPING);
+    if (elAway) elAway.textContent = formatDurationMMSS(stateTimes.AWAY);
+
+    // 2. Compute dynamic Flow percentage based on active session time
+    const totalActive = stateTimes.FOCUSED + stateTimes.ENGAGED + stateTimes.PRESENT + stateTimes.DROWSY + stateTimes.SLEEPING + stateTimes.AWAY;
+    const positiveTime = stateTimes.FOCUSED + stateTimes.ENGAGED;
+    const flowRatio = totalActive > 10 ? Math.min(100, Math.max(15, Math.round((positiveTime / totalActive) * 100))) : 96;
+
+    const elFlowScore = document.getElementById('rail-flow-score');
+    if (elFlowScore) elFlowScore.textContent = `${flowRatio}%`;
+
+    // 3. Animate Concentric Apple Health Style Activity Rings
+    // Ring 1: Deep Focus (Circumference: 263.89)
+    const ringFocused = document.getElementById('ring-flow-focused');
+    if (ringFocused) {
+      const circ1 = 263.89;
+      const targetSec = 25 * 60; // 25 min pomodoro goal
+      const pct1 = Math.min(1.0, stateTimes.FOCUSED / targetSec);
+      ringFocused.style.strokeDashoffset = (circ1 - pct1 * circ1).toString();
+    }
+
+    // Ring 2: Engaged Flow (Circumference: 201.06)
+    const ringEngaged = document.getElementById('ring-flow-engaged');
+    if (ringEngaged) {
+      const circ2 = 201.06;
+      const targetSec = 15 * 60;
+      const pct2 = Math.min(1.0, stateTimes.ENGAGED / targetSec);
+      ringEngaged.style.strokeDashoffset = (circ2 - pct2 * circ2).toString();
+    }
+
+    // Ring 3: Restorative Balance (Circumference: 138.23)
+    const ringDrowsy = document.getElementById('ring-flow-drowsy');
+    if (ringDrowsy) {
+      const circ3 = 138.23;
+      const drowsySec = stateTimes.DROWSY + stateTimes.SLEEPING;
+      const pct3 = Math.min(1.0, drowsySec / (5 * 60)); // max 5 min allowance
+      ringDrowsy.style.strokeDashoffset = (circ3 - pct3 * circ3).toString();
+    }
+  }
+
+  // 1-second interval tracking time spent in current state of mind
+  setInterval(() => {
+    if (detectedState && stateTimes[detectedState] !== undefined) {
+      stateTimes[detectedState]++;
+      // Persist every 5 seconds
+      if (stateTimes[detectedState] % 5 === 0) {
+        localStorage.setItem(`fm_time_${detectedState.toLowerCase()}`, stateTimes[detectedState].toString());
+      }
+      updateFlowStateAndMindTimes();
+    }
+  }, 1000);
+
+  updateFlowStateAndMindTimes();
 
   // =========================================================================
   // 2. Animated Expressive Micro-Robot Companion
@@ -326,10 +417,36 @@ console.log(twoSum([2, 7, 11, 15], 9));
   // MediaPipe FaceMesh
   let consecutiveEyesClosed = 0;
   let consecutiveNoFace = 0;
+  let latestLiveFaceRatio = 1.35;
+  let tempEstimatedRatio = 1.35;
 
   function processLandmarks(landmarks) {
     consecutiveNoFace = 0;
     presenceConfidence = 99;
+
+    // Optional: Target Person Only Biometric Verification
+    const faceTop = landmarks[10];   // Forehead landmark
+    const faceBottom = landmarks[152]; // Chin landmark
+    const faceLeft = landmarks[234];  // Left cheek
+    const faceRight = landmarks[454]; // Right cheek
+
+    if (faceTop && faceBottom && faceLeft && faceRight) {
+      const height = Math.hypot(faceTop.x - faceBottom.x, faceTop.y - faceBottom.y);
+      const width = Math.hypot(faceLeft.x - faceRight.x, faceLeft.y - faceRight.y);
+      const currentRatio = width > 0 ? height / width : 1.35;
+      latestLiveFaceRatio = currentRatio;
+
+      if (userProfile.targetPersonOnly && userProfile.calibratedFaceRatio > 0) {
+        // Tolerance window: if difference exceeds 0.28, treat as non-target passerby
+        if (Math.abs(currentRatio - userProfile.calibratedFaceRatio) > 0.28) {
+          presenceConfidence = 40;
+          headPoseStatus = 'Non-Target Face Ignored';
+          updateRobotAndHUD('AWAY');
+          updateHUDMetrics();
+          return;
+        }
+      }
+    }
 
     // EAR: landmarks 159 & 145 (vertical), 33 & 133 (horizontal)
     const p159 = landmarks[159], p145 = landmarks[145], p33 = landmarks[33], p133 = landmarks[133];
@@ -500,31 +617,45 @@ console.log(twoSum([2, 7, 11, 15], 9));
         const now = alarmAudioCtx.currentTime;
         const osc1 = alarmAudioCtx.createOscillator();
         const osc2 = alarmAudioCtx.createOscillator();
+        const osc3 = alarmAudioCtx.createOscillator(); // Sub-bass alarm punch
         const gain = alarmAudioCtx.createGain();
 
+        // High frequency piercing siren
         osc1.type = 'sawtooth';
-        osc1.frequency.setValueAtTime(880, now);
-        osc1.frequency.setValueAtTime(1760, now + 0.12);
+        osc1.frequency.setValueAtTime(950, now);
+        osc1.frequency.setValueAtTime(1900, now + 0.12);
 
+        // Mid discord piercing square wave
         osc2.type = 'square';
-        osc2.frequency.setValueAtTime(1200, now);
+        osc2.frequency.setValueAtTime(1450, now);
 
-        gain.gain.setValueAtTime(0.35, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+        // Low alarm horn wave
+        osc3.type = 'sawtooth';
+        osc3.frequency.setValueAtTime(440, now);
+
+        // Significantly amplified output gain (0.85 peak)
+        gain.gain.setValueAtTime(0.85, now);
+        gain.gain.exponentialRampToValueAtTime(0.02, now + 0.38);
 
         osc1.connect(gain);
         osc2.connect(gain);
+        osc3.connect(gain);
         gain.connect(alarmAudioCtx.destination);
 
         osc1.start(now);
         osc2.start(now);
-        osc1.stop(now + 0.35);
-        osc2.stop(now + 0.35);
+        osc3.start(now);
+        osc1.stop(now + 0.38);
+        osc2.stop(now + 0.38);
+        osc3.stop(now + 0.38);
+
+        // Engage continuous tactile vibration on mobile / supporting hardware
+        triggerHapticVibration([400, 150, 400, 150, 500]);
       };
 
       soundBurst();
       if (alarmInterval) clearInterval(alarmInterval);
-      alarmInterval = setInterval(soundBurst, 500);
+      alarmInterval = setInterval(soundBurst, 450);
     } catch (e) {
       console.warn('Alarm audio blocked:', e);
     }
@@ -918,19 +1049,22 @@ console.log(twoSum([2, 7, 11, 15], 9));
           const gain = ctx.createGain();
           const start = ctx.currentTime + (idx * 0.16);
 
-          osc.type = 'sine';
+          osc.type = 'triangle';
           osc.frequency.setValueAtTime(freq, start);
 
           gain.gain.setValueAtTime(0.001, start);
-          gain.gain.exponentialRampToValueAtTime(0.3, start + 0.05);
-          gain.gain.exponentialRampToValueAtTime(0.001, start + 0.35);
+          gain.gain.exponentialRampToValueAtTime(0.7, start + 0.05); // Boosted chime volume
+          gain.gain.exponentialRampToValueAtTime(0.001, start + 0.38);
 
           osc.connect(gain);
           gain.connect(ctx.destination);
 
           osc.start(start);
-          osc.stop(start + 0.36);
+          osc.stop(start + 0.39);
         });
+
+        // Trigger pulse vibration on alert
+        triggerHapticVibration([250, 100, 250]);
       }
     } catch (e) {
       console.warn('Audio chime blocked or unavailable:', e);
@@ -1377,6 +1511,199 @@ console.log(twoSum([2, 7, 11, 15], 9));
       updateSecurityShieldUI();
     });
   }
+
+  // =========================================================================
+  // 9b. Student Profile Photo & Target-Person Biometric Lock System
+  // =========================================================================
+  const btnOpenProfileModal = document.getElementById('btn-open-profile-modal');
+  const modalUserProfile = document.getElementById('modal-user-profile');
+  const btnCloseProfileModal = document.getElementById('btn-close-profile-modal');
+  const islandAvatarPlaceholder = document.getElementById('island-profile-avatar-placeholder');
+  const islandAvatarImg = document.getElementById('island-profile-avatar-img');
+  const islandFaceLockDot = document.getElementById('island-face-lock-dot');
+  const profilePreviewPlaceholder = document.getElementById('profile-modal-preview-placeholder');
+  const profilePreviewImg = document.getElementById('profile-modal-preview-img');
+  const inputProfilePhoto = document.getElementById('input-profile-photo');
+  const btnTriggerUploadPhoto = document.getElementById('btn-trigger-upload-photo');
+  const btnRemoveProfilePhoto = document.getElementById('btn-remove-profile-photo');
+  const inputProfileName = document.getElementById('input-profile-name');
+  const toggleTargetPersonOnly = document.getElementById('toggle-target-person-only');
+  const targetPersonStatusBanner = document.getElementById('target-person-status-banner');
+  const btnSaveProfile = document.getElementById('btn-save-profile');
+
+  let tempProfilePhotoUrl = userProfile.photoUrl;
+
+  function refreshProfileUI() {
+    // 1. Dynamic Island avatar
+    if (userProfile.photoUrl) {
+      if (islandAvatarImg) {
+        islandAvatarImg.src = userProfile.photoUrl;
+        islandAvatarImg.classList.remove('hidden');
+      }
+      if (islandAvatarPlaceholder) islandAvatarPlaceholder.classList.add('hidden');
+    } else {
+      if (islandAvatarImg) islandAvatarImg.classList.add('hidden');
+      if (islandAvatarPlaceholder) islandAvatarPlaceholder.classList.remove('hidden');
+    }
+
+    // 2. Face lock indicator dot
+    if (islandFaceLockDot) {
+      if (userProfile.targetPersonOnly) {
+        islandFaceLockDot.classList.remove('hidden');
+      } else {
+        islandFaceLockDot.classList.add('hidden');
+      }
+    }
+
+    // 3. Modal fields
+    if (inputProfileName) inputProfileName.value = userProfile.name;
+    if (toggleTargetPersonOnly) toggleTargetPersonOnly.checked = userProfile.targetPersonOnly;
+    if (targetPersonStatusBanner) {
+      if (userProfile.targetPersonOnly && userProfile.calibratedFaceRatio > 0) {
+        targetPersonStatusBanner.classList.remove('hidden');
+      } else {
+        targetPersonStatusBanner.classList.add('hidden');
+      }
+    }
+
+    // 4. Modal photo preview
+    if (tempProfilePhotoUrl) {
+      if (profilePreviewImg) {
+        profilePreviewImg.src = tempProfilePhotoUrl;
+        profilePreviewImg.classList.remove('hidden');
+      }
+      if (profilePreviewPlaceholder) profilePreviewPlaceholder.classList.add('hidden');
+      if (btnRemoveProfilePhoto) btnRemoveProfilePhoto.classList.remove('hidden');
+    } else {
+      if (profilePreviewImg) profilePreviewImg.classList.add('hidden');
+      if (profilePreviewPlaceholder) profilePreviewPlaceholder.classList.remove('hidden');
+      if (btnRemoveProfilePhoto) btnRemoveProfilePhoto.classList.add('hidden');
+    }
+
+    // 5. Update teacher card student name
+    const teacherStudentCardHeader = document.querySelector('#teacher-student-you-card .font-bold');
+    if (teacherStudentCardHeader) {
+      teacherStudentCardHeader.textContent = `Student: ${userProfile.name}`;
+    }
+  }
+
+  function openProfileModal() {
+    if (!modalUserProfile) return;
+    tempProfilePhotoUrl = userProfile.photoUrl;
+    refreshProfileUI();
+    modalUserProfile.classList.remove('hidden');
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  function closeProfileModal() {
+    if (!modalUserProfile) return;
+    modalUserProfile.classList.add('hidden');
+  }
+
+  if (btnOpenProfileModal) {
+    btnOpenProfileModal.addEventListener('click', (e) => {
+      e.stopPropagation(); // Prevent opening Dynamic Island HUD modal
+      openProfileModal();
+    });
+  }
+
+  if (btnCloseProfileModal) {
+    btnCloseProfileModal.addEventListener('click', closeProfileModal);
+  }
+
+  if (modalUserProfile) {
+    modalUserProfile.addEventListener('click', (e) => {
+      if (e.target === modalUserProfile) closeProfileModal();
+    });
+  }
+
+  if (btnTriggerUploadPhoto && inputProfilePhoto) {
+    btnTriggerUploadPhoto.addEventListener('click', () => {
+      inputProfilePhoto.click();
+    });
+  }
+
+  if (profilePreviewPlaceholder && inputProfilePhoto) {
+    profilePreviewPlaceholder.addEventListener('click', () => {
+      inputProfilePhoto.click();
+    });
+  }
+
+  if (inputProfilePhoto) {
+    inputProfilePhoto.addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (loadEvt) => {
+        tempProfilePhotoUrl = loadEvt.target.result;
+        if (profilePreviewImg) {
+          profilePreviewImg.src = tempProfilePhotoUrl;
+          profilePreviewImg.classList.remove('hidden');
+        }
+        if (profilePreviewPlaceholder) profilePreviewPlaceholder.classList.add('hidden');
+        if (btnRemoveProfilePhoto) btnRemoveProfilePhoto.classList.remove('hidden');
+
+        // Estimate face ratio from image dimensions as fallback
+        const img = new Image();
+        img.onload = () => {
+          if (img.naturalHeight && img.naturalWidth) {
+            const r = img.naturalHeight / img.naturalWidth;
+            if (r >= 0.8 && r <= 2.2) {
+              tempEstimatedRatio = r;
+            }
+          }
+        };
+        img.src = tempProfilePhotoUrl;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  if (btnRemoveProfilePhoto) {
+    btnRemoveProfilePhoto.addEventListener('click', () => {
+      tempProfilePhotoUrl = '';
+      if (inputProfilePhoto) inputProfilePhoto.value = '';
+      if (profilePreviewImg) {
+        profilePreviewImg.src = '';
+        profilePreviewImg.classList.add('hidden');
+      }
+      if (profilePreviewPlaceholder) profilePreviewPlaceholder.classList.remove('hidden');
+      btnRemoveProfilePhoto.classList.add('hidden');
+    });
+  }
+
+  if (btnSaveProfile) {
+    btnSaveProfile.addEventListener('click', () => {
+      userProfile.name = (inputProfileName && inputProfileName.value.trim()) || 'You';
+      userProfile.photoUrl = tempProfilePhotoUrl || '';
+      userProfile.targetPersonOnly = toggleTargetPersonOnly ? toggleTargetPersonOnly.checked : false;
+
+      // Calibrate face ratio signature
+      if (userProfile.targetPersonOnly) {
+        if (latestLiveFaceRatio > 0) {
+          userProfile.calibratedFaceRatio = latestLiveFaceRatio;
+        } else if (tempEstimatedRatio > 0) {
+          userProfile.calibratedFaceRatio = tempEstimatedRatio;
+        } else if (!userProfile.calibratedFaceRatio) {
+          userProfile.calibratedFaceRatio = 1.35;
+        }
+      }
+
+      // Persist in localStorage
+      localStorage.setItem('fm_profile_name', userProfile.name);
+      localStorage.setItem('fm_profile_photo', userProfile.photoUrl);
+      localStorage.setItem('fm_target_person_only', userProfile.targetPersonOnly.toString());
+      localStorage.setItem('fm_calibrated_ratio', userProfile.calibratedFaceRatio.toString());
+
+      refreshProfileUI();
+      closeProfileModal();
+      showZoomToast(`✓ Profile & Biometric Lock Saved (${userProfile.name})`);
+    });
+  }
+
+  // Initial load sync
+  refreshProfileUI();
 
   // =========================================================================
   // Multi-Device Synchronization & Pairing (QR & Room Sync)

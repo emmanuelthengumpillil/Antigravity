@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, ShieldCheck, Eye, Flame, Trophy, Activity, AlertCircle, X, Maximize2, CheckCircle2, VideoOff } from 'lucide-react';
+import { Camera, ShieldCheck, Eye, Flame, Trophy, Activity, AlertCircle, X, Maximize2, CheckCircle2, VideoOff, User, Upload, ScanFace } from 'lucide-react';
 import RobotAvatar, { DetectedState } from './RobotAvatar';
 
 interface DynamicIslandProps {
@@ -33,6 +33,11 @@ export default function DynamicIsland({
 }: DynamicIslandProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showTimeTooltip, setShowTimeTooltip] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [userName, setUserName] = useState(() => localStorage.getItem('fm_profile_name') || 'You');
+  const [userPhoto, setUserPhoto] = useState(() => localStorage.getItem('fm_profile_photo') || '');
+  const [targetPersonOnly, setTargetPersonOnly] = useState(() => localStorage.getItem('fm_target_person_only') === 'true');
+  const [tempPhoto, setTempPhoto] = useState(userPhoto);
 
   // Styling based strictly on real-time detected state
   const stateStyles = {
@@ -123,6 +128,30 @@ export default function DynamicIsland({
               <span>({exactTimeFormatted})</span>
             </div>
           )}
+
+          <div className="w-px h-6 bg-white/10" />
+
+          {/* User Profile Avatar & Face Lock Indicator */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setTempPhoto(userPhoto);
+              setIsProfileModalOpen(true);
+            }}
+            className="relative group flex items-center justify-center focus:outline-none"
+            title="User Profile & Face Lock Tracking"
+          >
+            {userPhoto ? (
+              <img src={userPhoto} alt="Profile" className="w-8 h-8 rounded-full object-cover border border-cyan-400 shadow-sm" />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-500/30 to-indigo-500/30 border border-cyan-500/40 flex items-center justify-center text-cyan-300 text-xs font-mono font-bold shadow-sm group-hover:border-cyan-400 transition-all">
+                <User className="w-4 h-4 text-cyan-300" />
+              </div>
+            )}
+            {targetPersonOnly && (
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-black" title="Target Person Lock Active" />
+            )}
+          </button>
         </div>
       </header>
 
@@ -233,6 +262,141 @@ export default function DynamicIsland({
                 <span>+10 pts continuously awarded for every 30s maintained focus.</span>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* 3. User Profile & Biometric Face Lock Modal                         */}
+      {/* =================================================================== */}
+      {isProfileModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn select-none"
+          onClick={() => setIsProfileModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl bg-neutral-950 border border-white/15 p-6 shadow-2xl space-y-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                  <User className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white tracking-tight">Student Profile & Biometric Lock</h3>
+                  <p className="text-[11px] text-white/40 font-mono">Personalized Attention & Target Face Lock</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsProfileModalOpen(false)}
+                className="p-1 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Photo Upload & Preview */}
+            <div className="flex flex-col items-center space-y-3">
+              <div className="relative group">
+                {tempPhoto ? (
+                  <img src={tempPhoto} alt="Profile Preview" className="w-24 h-24 rounded-full object-cover border-2 border-cyan-400 shadow-xl" />
+                ) : (
+                  <div
+                    onClick={() => document.getElementById('react-file-upload-input')?.click()}
+                    className="w-24 h-24 rounded-full bg-neutral-900 border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-white/40 hover:border-cyan-400/60 transition-all cursor-pointer shadow-inner"
+                  >
+                    <Camera className="w-6 h-6 mb-1 text-white/30" />
+                    <span className="text-[10px] font-mono">Upload Photo</span>
+                  </div>
+                )}
+                <input
+                  id="react-file-upload-input"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) {
+                      const r = new FileReader();
+                      r.onload = () => setTempPhoto(r.result as string);
+                      r.readAsDataURL(f);
+                    }
+                  }}
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => document.getElementById('react-file-upload-input')?.click()}
+                  className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-xs text-white font-mono flex items-center space-x-1.5 transition-all"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Choose Image</span>
+                </button>
+                {tempPhoto && (
+                  <button
+                    onClick={() => setTempPhoto('')}
+                    className="px-2.5 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-xs text-red-400 font-mono transition-all"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Student Name */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-mono text-white/60">Learner Name</label>
+              <input
+                type="text"
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+                placeholder="Enter student name..."
+                className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-white/30 font-sans focus:outline-none focus:border-cyan-500/50"
+              />
+            </div>
+
+            {/* Target Person Only Lock Toggle */}
+            <div className="p-3.5 rounded-2xl bg-neutral-900/70 border border-white/10 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <ScanFace className="w-4 h-4 text-emerald-400" />
+                  <span className="text-xs font-semibold text-white">Target Person Only Lock</span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={targetPersonOnly}
+                    onChange={(e) => setTargetPersonOnly(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                </label>
+              </div>
+              <p className="text-[11px] text-white/50 leading-relaxed">
+                When toggled ON, the AI tracking engine filters out passersby or background persons, tracking only the calibrated profile face geometry. If another face enters the frame, focus tracking ignores them.
+              </p>
+              {targetPersonOnly && (
+                <div className="text-[10px] font-mono text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
+                  ● Calibrated Biometric Lock Active
+                </div>
+              )}
+            </div>
+
+            {/* Save Button */}
+            <button
+              onClick={() => {
+                setUserPhoto(tempPhoto);
+                localStorage.setItem('fm_profile_name', userName);
+                localStorage.setItem('fm_profile_photo', tempPhoto);
+                localStorage.setItem('fm_target_person_only', targetPersonOnly.toString());
+                setIsProfileModalOpen(false);
+              }}
+              className="w-full py-2.5 rounded-xl bg-white text-black font-bold text-xs hover:bg-neutral-200 transition-all shadow-md"
+            >
+              Save Profile & Apply Biometrics
+            </button>
           </div>
         </div>
       )}

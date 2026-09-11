@@ -30,35 +30,49 @@ export default function EmergencySleepModal({ isOpen, onDismiss, earValue = 0.14
         if (ctx.state === 'suspended') ctx.resume();
 
         const now = ctx.currentTime;
-        // High frequency dual tone buzzer (1760Hz and 880Hz square wave)
+        // High frequency triple tone siren buzzer (amplified with sub-bass)
         const osc1 = ctx.createOscillator();
         const osc2 = ctx.createOscillator();
+        const osc3 = ctx.createOscillator();
         const gain = ctx.createGain();
 
         osc1.type = 'sawtooth';
-        osc1.frequency.setValueAtTime(880, now);
-        osc1.frequency.setValueAtTime(1760, now + 0.15);
+        osc1.frequency.setValueAtTime(950, now);
+        osc1.frequency.setValueAtTime(1900, now + 0.12);
 
         osc2.type = 'square';
-        osc2.frequency.setValueAtTime(1200, now);
+        osc2.frequency.setValueAtTime(1450, now);
 
-        gain.gain.setValueAtTime(0.4, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+        osc3.type = 'sawtooth';
+        osc3.frequency.setValueAtTime(440, now);
+
+        gain.gain.setValueAtTime(0.85, now);
+        gain.gain.exponentialRampToValueAtTime(0.02, now + 0.38);
 
         osc1.connect(gain);
         osc2.connect(gain);
+        osc3.connect(gain);
         gain.connect(ctx.destination);
 
         osc1.start(now);
         osc2.start(now);
-        osc1.stop(now + 0.35);
-        osc2.stop(now + 0.35);
+        osc3.start(now);
+        osc1.stop(now + 0.38);
+        osc2.stop(now + 0.38);
+        osc3.stop(now + 0.38);
+
+        // Engage continuous tactile vibration on mobile / supporting hardware
+        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+          try {
+            navigator.vibrate([400, 150, 400, 150, 500]);
+          } catch (err) {}
+        }
       };
 
       // Sound immediately
       triggerAlarmBurst();
-      // Repeat rapid alarm every 500ms
-      alarmIntervalRef.current = setInterval(triggerAlarmBurst, 500);
+      // Repeat rapid alarm every 450ms
+      alarmIntervalRef.current = setInterval(triggerAlarmBurst, 450);
     } catch (e) {
       console.warn('Audio alarm could not play:', e);
     }
