@@ -1,22 +1,43 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Pure OLED Dark Aesthetic & Smooth Springs */
+:root {
+  color-scheme: dark;
+}
 
-@keyframes breathe {
+body {
+  background-color: #000000;
+  color: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Fluid spring timing for Dynamic Island */
+.ease-spring {
+  transition-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes islandExpand {
   0% {
-    transform: scale(0.85);
+    transform: scale(0.95);
     opacity: 0.7;
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
-  }
-  50% {
-    transform: scale(1.25);
-    opacity: 1;
-    box-shadow: 0 0 50px rgba(99, 102, 241, 0.8);
   }
   100% {
-    transform: scale(0.85);
-    opacity: 0.7;
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-island {
+  animation: islandExpand 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes breathe {
+  0%, 100% {
+    transform: scale(0.92);
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+  }
+  50% {
+    transform: scale(1.15);
+    box-shadow: 0 0 50px rgba(99, 102, 241, 0.7);
   }
 }
 
@@ -24,38 +45,17 @@
   animation: breathe 8s infinite ease-in-out;
 }
 
-@keyframes pulseGlow {
-  0%, 100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.6;
-    transform: scale(1.05);
-  }
-}
-
-.pulse-glow {
-  animation: pulseGlow 2s infinite ease-in-out;
-}
-
-/* Custom Scrollbars */
+/* Minimal Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
 }
 ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
-}
-
-/* Code Editor Styling */
-.code-font {
-  font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, Consolas, 'Courier New', monospace;
+  background: rgba(255, 255, 255, 0.25);
 }
