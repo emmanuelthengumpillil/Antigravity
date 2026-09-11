@@ -162,3 +162,41 @@ class TeacherNudgeRequest(BaseModel):
     nudge_type: str = "ENCOURAGEMENT"  # "WAKE_UP", "ENCOURAGEMENT", "BREATHER"
     custom_message: Optional[str] = None
 
+
+class ZoomDevice(BaseModel):
+    device_id: str
+    name: str
+    device_type: str  # "Primary Laptop", "Classroom Display", "Teacher Tablet", "Student Laptop"
+    role: str  # "Host", "Co-Host", "Participant"
+    email: Optional[str] = None
+    is_in_waiting_room: bool = False
+    connected_at: float = Field(default_factory=lambda: time.time())
+
+
+class ZoomSettings(BaseModel):
+    co_host_enabled: bool = True
+    alternative_host_enabled: bool = True
+    alternative_hosts: List[str] = Field(default_factory=lambda: ["teacher.lead@school.edu", "prof.math@school.edu"])
+    waiting_room_enabled: bool = True
+    allow_alt_hosts_polls_breakout: bool = True
+    screen_share_rule: str = "Host and Co-hosts only"  # "Host and Co-hosts only" | "All Participants"
+    meeting_verified: bool = True
+    security_shield_active: bool = True
+    connected_devices: List[ZoomDevice] = Field(default_factory=list)
+
+
+class UpdateZoomSettingsRequest(BaseModel):
+    co_host_enabled: Optional[bool] = None
+    alternative_host_enabled: Optional[bool] = None
+    alternative_hosts: Optional[List[str]] = None
+    waiting_room_enabled: Optional[bool] = None
+    allow_alt_hosts_polls_breakout: Optional[bool] = None
+    screen_share_rule: Optional[str] = None
+
+
+class PromoteDeviceRequest(BaseModel):
+    device_id: str
+    new_role: str  # "Host", "Co-Host", "Participant"
+    admit_from_waiting_room: bool = False
+
+

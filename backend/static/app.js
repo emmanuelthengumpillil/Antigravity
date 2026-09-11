@@ -771,6 +771,355 @@ console.log(twoSum([2, 7, 11, 15], 9));
     }
   }, 1000);
 
+  // =========================================================================
+  // 9. Zoom Classroom & Co-Host Manager System
+  // =========================================================================
+  const modalZoom = document.getElementById('modal-zoom-classroom');
+  const btnOpenZoomCompact = document.getElementById('btn-open-zoom-compact');
+  const btnOpenZoomExpanded = document.getElementById('btn-open-zoom-expanded');
+  const btnCloseZoomModal = document.getElementById('btn-close-zoom-modal');
+  const btnSaveZoomSettings = document.getElementById('btn-save-zoom-settings');
+  const zoomToast = document.getElementById('zoom-toast');
+  const zoomToastText = document.getElementById('zoom-toast-text');
+
+  // Tabs
+  const btnZoomTabHost = document.getElementById('btn-zoom-tab-host');
+  const btnZoomTabSecurity = document.getElementById('btn-zoom-tab-security');
+  const btnZoomTabDevices = document.getElementById('btn-zoom-tab-devices');
+  const tabContentHost = document.getElementById('zoom-tab-content-host');
+  const tabContentSecurity = document.getElementById('zoom-tab-content-security');
+  const tabContentDevices = document.getElementById('zoom-tab-content-devices');
+
+  // Tab 1 controls
+  const zoomToggleCohost = document.getElementById('zoom-toggle-cohost');
+  const zoomToggleAlthost = document.getElementById('zoom-toggle-althost');
+  const zoomInputAltEmail = document.getElementById('zoom-input-althost-email');
+  const btnZoomAddAltEmail = document.getElementById('btn-zoom-add-althost');
+  const zoomAltHostsContainer = document.getElementById('zoom-althosts-container');
+
+  // Tab 2 controls
+  const zoomToggleWaitingRoom = document.getElementById('zoom-toggle-waitingroom');
+  const zoomTogglePolls = document.getElementById('zoom-toggle-polls');
+  const zoomSelectScreenshare = document.getElementById('zoom-select-screenshare');
+  const zoomShieldCard = document.getElementById('zoom-security-shield-card');
+
+  // Tab 3 controls
+  const zoomDevicesContainer = document.getElementById('zoom-devices-container');
+
+  // Local state mirror
+  let zoomState = {
+    co_host_enabled: true,
+    alternative_host_enabled: true,
+    alternative_hosts: ['teacher.lead@school.edu', 'prof.math@school.edu'],
+    waiting_room_enabled: true,
+    allow_alt_hosts_polls_breakout: true,
+    screen_share_rule: 'Host and Co-hosts only',
+    security_shield_active: true,
+    meeting_verified: true,
+    connected_devices: [
+      { device_id: 'dev_primary_laptop', name: 'Teacher Laptop (Primary)', device_type: 'Primary Laptop', role: 'Host', email: 'teacher.lead@school.edu' },
+      { device_id: 'dev_display_1', name: 'Classroom Smartboard 302', device_type: 'Classroom Display', role: 'Co-Host', email: 'prof.math@school.edu' },
+      { device_id: 'dev_tablet_1', name: 'Teacher iPad Pro', device_type: 'Teacher Tablet', role: 'Co-Host', email: 'teacher.lead@school.edu' },
+      { device_id: 'dev_student_1', name: 'Student Lab Device', device_type: 'Student Laptop', role: 'Participant', email: 'student@school.edu' }
+    ]
+  };
+
+  function showZoomToast(msg) {
+    if (!zoomToast || !zoomToastText) return;
+    zoomToastText.textContent = msg;
+    zoomToast.classList.remove('hidden');
+    setTimeout(() => {
+      zoomToast.classList.add('hidden');
+    }, 3500);
+  }
+
+  function switchZoomTab(tabName) {
+    const tabs = [
+      { name: 'host', btn: btnZoomTabHost, content: tabContentHost },
+      { name: 'security', btn: btnZoomTabSecurity, content: tabContentSecurity },
+      { name: 'devices', btn: btnZoomTabDevices, content: tabContentDevices }
+    ];
+
+    tabs.forEach(t => {
+      if (!t.btn || !t.content) return;
+      if (t.name === tabName) {
+        t.content.classList.remove('hidden');
+        t.btn.className = 'flex-1 py-2 rounded-xl transition-all font-semibold flex items-center justify-center space-x-2 bg-white/15 text-white shadow';
+      } else {
+        t.content.classList.add('hidden');
+        t.btn.className = 'flex-1 py-2 rounded-xl transition-all font-semibold flex items-center justify-center space-x-2 text-white/40 hover:text-white';
+      }
+    });
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  if (btnZoomTabHost) btnZoomTabHost.addEventListener('click', () => switchZoomTab('host'));
+  if (btnZoomTabSecurity) btnZoomTabSecurity.addEventListener('click', () => switchZoomTab('security'));
+  if (btnZoomTabDevices) btnZoomTabDevices.addEventListener('click', () => switchZoomTab('devices'));
+
+  function updateSecurityShieldUI() {
+    const isWaitingRoom = zoomToggleWaitingRoom ? zoomToggleWaitingRoom.checked : true;
+    const isRestrictedShare = zoomSelectScreenshare ? (zoomSelectScreenshare.value === 'Host and Co-hosts only') : true;
+    const isShieldActive = isWaitingRoom && isRestrictedShare;
+
+    if (zoomShieldCard) {
+      if (isShieldActive) {
+        zoomShieldCard.className = 'p-4 rounded-2xl border transition-all bg-emerald-950/20 border-emerald-500/40 text-emerald-300';
+        zoomShieldCard.innerHTML = `
+          <div class="flex items-center space-x-2.5">
+            <i data-lucide="shield-check" class="w-5 h-5 text-emerald-400"></i>
+            <div>
+              <div class="text-xs font-bold">In-Meeting Security Shield: ACTIVE</div>
+              <div class="text-[11px] text-white/70">Waiting Room is active & Screen Sharing restricted to Host and Co-hosts.</div>
+            </div>
+          </div>
+        `;
+      } else {
+        zoomShieldCard.className = 'p-4 rounded-2xl border transition-all bg-amber-950/20 border-amber-500/40 text-amber-300';
+        zoomShieldCard.innerHTML = `
+          <div class="flex items-center space-x-2.5">
+            <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-400"></i>
+            <div>
+              <div class="text-xs font-bold">In-Meeting Security Shield: ATTENTION</div>
+              <div class="text-[11px] text-white/70">Enable Waiting Room and restrict screen share to Host & Co-hosts for maximum security.</div>
+            </div>
+          </div>
+        `;
+      }
+      if (window.lucide) window.lucide.createIcons();
+    }
+  }
+
+  if (zoomToggleWaitingRoom) zoomToggleWaitingRoom.addEventListener('change', updateSecurityShieldUI);
+  if (zoomSelectScreenshare) zoomSelectScreenshare.addEventListener('change', updateSecurityShieldUI);
+
+  function renderAltHostsList() {
+    if (!zoomAltHostsContainer) return;
+    zoomAltHostsContainer.innerHTML = '';
+
+    zoomState.alternative_hosts.forEach((email) => {
+      const item = document.createElement('div');
+      item.className = 'flex items-center justify-between p-2.5 rounded-xl bg-black/40 border border-white/5 text-xs font-mono';
+      item.innerHTML = `
+        <div class="flex items-center space-x-2">
+          <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-400"></i>
+          <span class="text-white">${email}</span>
+          <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">Alternative Host</span>
+        </div>
+        <button data-email="${email}" class="btn-remove-alt-host text-white/30 hover:text-red-400 transition-colors p-1" title="Remove">
+          <i data-lucide="x" class="w-3.5 h-3.5"></i>
+        </button>
+      `;
+      zoomAltHostsContainer.appendChild(item);
+    });
+
+    // Wire delete buttons
+    zoomAltHostsContainer.querySelectorAll('.btn-remove-alt-host').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const targetEmail = btn.getAttribute('data-email');
+        zoomState.alternative_hosts = zoomState.alternative_hosts.filter(em => em !== targetEmail);
+        renderAltHostsList();
+        showZoomToast(`Removed ${targetEmail} from Alternative Hosts`);
+      });
+    });
+
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  function handleAddAltHost() {
+    if (!zoomInputAltEmail || !zoomInputAltEmail.value.trim()) return;
+    const email = zoomInputAltEmail.value.trim();
+    if (!email.includes('@')) {
+      showZoomToast('Please enter a valid email address');
+      return;
+    }
+    if (zoomState.alternative_hosts.includes(email)) {
+      showZoomToast('Email is already registered as Alternative Host');
+      return;
+    }
+    zoomState.alternative_hosts.push(email);
+    zoomInputAltEmail.value = '';
+    renderAltHostsList();
+    showZoomToast(`Added ${email} to Alternative Hosts`);
+  }
+
+  if (btnZoomAddAltEmail) btnZoomAddAltEmail.addEventListener('click', handleAddAltHost);
+  if (zoomInputAltEmail) {
+    zoomInputAltEmail.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleAddAltHost();
+    });
+  }
+
+  function renderDevicesList() {
+    if (!zoomDevicesContainer) return;
+    zoomDevicesContainer.innerHTML = '';
+
+    zoomState.connected_devices.forEach((dev) => {
+      const card = document.createElement('div');
+      card.className = 'p-3 rounded-2xl bg-black/40 border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs';
+
+      let iconHtml = '<i data-lucide="laptop" class="w-4 h-4 text-cyan-400"></i>';
+      if (dev.device_type.toLowerCase().includes('display') || dev.device_type.toLowerCase().includes('board')) {
+        iconHtml = '<i data-lucide="monitor" class="w-4 h-4 text-indigo-400"></i>';
+      } else if (dev.device_type.toLowerCase().includes('tablet') || dev.device_type.toLowerCase().includes('ipad')) {
+        iconHtml = '<i data-lucide="tablet" class="w-4 h-4 text-emerald-400"></i>';
+      }
+
+      let roleBadge = '';
+      if (dev.role === 'Host') {
+        roleBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">Host</span>';
+      } else if (dev.role === 'Co-Host') {
+        roleBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">Co-Host</span>';
+      } else {
+        roleBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-mono text-white/50 bg-white/5 border border-white/10">Participant</span>';
+      }
+
+      let actionsHtml = '';
+      if (dev.role !== 'Host') {
+        if (dev.role !== 'Co-Host') {
+          actionsHtml += `
+            <button data-id="${dev.device_id}" data-role="Co-Host" class="btn-promote-dev px-2.5 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/30 text-cyan-300 text-[11px] font-mono transition-all">
+              Make Co-Host
+            </button>
+          `;
+        }
+        actionsHtml += `
+          <button data-id="${dev.device_id}" data-role="Host" class="btn-promote-dev px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-300 text-[11px] font-mono transition-all">
+            Make Host
+          </button>
+        `;
+      } else {
+        actionsHtml = '<span class="text-[10px] text-white/40 font-mono">Primary Session Leader</span>';
+      }
+
+      card.innerHTML = `
+        <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
+            ${iconHtml}
+          </div>
+          <div>
+            <div class="font-bold text-white flex items-center space-x-2">
+              <span>${dev.name}</span>
+              ${roleBadge}
+            </div>
+            <div class="text-[11px] text-white/40 font-mono">${dev.device_type} • ${dev.email || 'device@school.edu'}</div>
+          </div>
+        </div>
+        <div class="flex items-center space-x-2">
+          ${actionsHtml}
+        </div>
+      `;
+
+      zoomDevicesContainer.appendChild(card);
+    });
+
+    // Wire device promotion buttons
+    zoomDevicesContainer.querySelectorAll('.btn-promote-dev').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const devId = btn.getAttribute('data-id');
+        const newRole = btn.getAttribute('data-role');
+        try {
+          const res = await fetch('/api/zoom/devices/role', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ device_id: devId, new_role: newRole, admit_from_waiting_room: true })
+          });
+          if (res.ok) {
+            const dev = zoomState.connected_devices.find(d => d.device_id === devId);
+            if (dev) dev.role = newRole;
+            renderDevicesList();
+            showZoomToast(`Device role updated to ${newRole}`);
+            return;
+          }
+        } catch (e) {
+          console.log('Offline fallback for device role promotion:', e);
+        }
+        // Fallback locally
+        const dev = zoomState.connected_devices.find(d => d.device_id === devId);
+        if (dev) dev.role = newRole;
+        renderDevicesList();
+        showZoomToast(`Device promoted to ${newRole}`);
+      });
+    });
+
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  async function fetchZoomSettingsFromServer() {
+    try {
+      const res = await fetch('/api/zoom/settings');
+      if (res.ok) {
+        const data = await res.json();
+        zoomState = data;
+        if (zoomToggleCohost) zoomToggleCohost.checked = data.co_host_enabled;
+        if (zoomToggleAlthost) zoomToggleAlthost.checked = data.alternative_host_enabled;
+        if (zoomToggleWaitingRoom) zoomToggleWaitingRoom.checked = data.waiting_room_enabled;
+        if (zoomTogglePolls) zoomTogglePolls.checked = data.allow_alt_hosts_polls_breakout;
+        if (zoomSelectScreenshare) zoomSelectScreenshare.value = data.screen_share_rule;
+      }
+    } catch (e) {
+      console.log('Using default zoom settings:', e);
+    }
+    renderAltHostsList();
+    renderDevicesList();
+    updateSecurityShieldUI();
+  }
+
+  function openZoomModal() {
+    if (!modalZoom) return;
+    modalZoom.classList.remove('hidden');
+    fetchZoomSettingsFromServer();
+  }
+
+  function closeZoomModal() {
+    if (!modalZoom) return;
+    modalZoom.classList.add('hidden');
+  }
+
+  if (btnOpenZoomCompact) btnOpenZoomCompact.addEventListener('click', openZoomModal);
+  if (btnOpenZoomExpanded) btnOpenZoomExpanded.addEventListener('click', openZoomModal);
+  if (btnCloseZoomModal) btnCloseZoomModal.addEventListener('click', closeZoomModal);
+
+  // Close on backdrop click
+  if (modalZoom) {
+    modalZoom.addEventListener('click', (e) => {
+      if (e.target === modalZoom) closeZoomModal();
+    });
+  }
+
+  // Save Settings & Sync button
+  if (btnSaveZoomSettings) {
+    btnSaveZoomSettings.addEventListener('click', async () => {
+      const payload = {
+        co_host_enabled: zoomToggleCohost ? zoomToggleCohost.checked : true,
+        alternative_host_enabled: zoomToggleAlthost ? zoomToggleAlthost.checked : true,
+        alternative_hosts: zoomState.alternative_hosts,
+        waiting_room_enabled: zoomToggleWaitingRoom ? zoomToggleWaitingRoom.checked : true,
+        allow_alt_hosts_polls_breakout: zoomTogglePolls ? zoomTogglePolls.checked : true,
+        screen_share_rule: zoomSelectScreenshare ? zoomSelectScreenshare.value : 'Host and Co-hosts only'
+      };
+
+      try {
+        const res = await fetch('/api/zoom/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          const data = await res.json();
+          zoomState = data;
+          showZoomToast('✓ Zoom Classroom Settings Synchronized & Verified');
+          updateSecurityShieldUI();
+          return;
+        }
+      } catch (e) {
+        console.log('Offline fallback for save zoom settings:', e);
+      }
+      showZoomToast('✓ Zoom Classroom Settings Saved Locally');
+      updateSecurityShieldUI();
+    });
+  }
+
   // Initialize Default State
   updateRobotAndHUD('FOCUSED');
 });

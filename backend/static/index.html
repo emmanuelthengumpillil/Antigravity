@@ -208,11 +208,16 @@
         </div>
       </div>
 
-      <!-- Teacher Live Monitor -->
+      <!-- Teacher Live Monitor & Zoom Classroom Trigger -->
       <div class="w-full flex flex-col items-center space-y-2">
-        <div class="rail-compact-content relative">
-          <i data-lucide="users" class="w-4 h-4 text-white/30"></i>
-          <span id="rail-compact-sleep-ping" class="hidden absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+        <div class="rail-compact-content flex flex-col items-center space-y-2">
+          <div class="relative">
+            <i data-lucide="users" class="w-4 h-4 text-white/30"></i>
+            <span id="rail-compact-sleep-ping" class="hidden absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+          </div>
+          <button id="btn-open-zoom-compact" title="Zoom Classroom & Co-Hosts" class="w-8 h-8 rounded-xl bg-white/5 hover:bg-cyan-500/20 border border-white/10 hover:border-cyan-500/30 text-white/40 hover:text-cyan-400 flex items-center justify-center transition-all">
+            <i data-lucide="video" class="w-3.5 h-3.5"></i>
+          </button>
         </div>
 
         <div class="rail-expanded-content hidden w-full p-3 rounded-2xl bg-neutral-900/80 border border-white/10 space-y-2">
@@ -247,6 +252,12 @@
             <span>Student C (Elena): Focusing</span>
             <span class="text-emerald-400">[EAR 0.27]</span>
           </div>
+
+          <!-- Zoom Classroom & Co-Host Manager Trigger -->
+          <button id="btn-open-zoom-expanded" class="w-full mt-2 py-1.5 px-2.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-xs font-mono font-semibold flex items-center justify-center space-x-2 transition-all shadow-sm">
+            <i data-lucide="video" class="w-3.5 h-3.5 text-cyan-400"></i>
+            <span>Zoom Co-Host & Controls</span>
+          </button>
         </div>
       </div>
     </aside>
@@ -448,6 +459,225 @@
           <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
           <span>+10 pts continuously awarded for every 30s maintained focus.</span>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Zoom Classroom & Co-Host Modal -->
+  <div id="modal-zoom-classroom" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-xl p-4 select-none animate-fadeIn">
+    <div class="w-full max-w-2xl rounded-3xl bg-neutral-950 border border-white/15 p-6 md:p-8 shadow-2xl shadow-black space-y-6 text-white max-h-[90vh] overflow-y-auto">
+      
+      <!-- Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-white/10">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+            <i data-lucide="video" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-bold tracking-tight text-white">Zoom Classroom & Co-Host Manager</h2>
+            <p class="text-xs text-white/50 font-mono">Web Portal Configuration & Classroom Co-Hosts</p>
+          </div>
+        </div>
+        <button id="btn-close-zoom-modal" class="p-1 rounded-lg text-white/40 hover:text-white transition-colors">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Toast Feedback -->
+      <div id="zoom-toast" class="hidden p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-mono animate-fadeIn flex items-center space-x-2">
+        <i data-lucide="check-circle-2" class="w-4 h-4 text-cyan-400"></i>
+        <span id="zoom-toast-text">Settings updated</span>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="flex items-center space-x-2 p-1 rounded-2xl bg-neutral-900 border border-white/10 text-xs font-mono">
+        <button
+          id="btn-zoom-tab-host"
+          class="flex-1 py-2 rounded-xl transition-all font-semibold flex items-center justify-center space-x-2 bg-white/15 text-white shadow"
+        >
+          <i data-lucide="users" class="w-3.5 h-3.5"></i>
+          <span>1. Host & Alt Hosts</span>
+        </button>
+        <button
+          id="btn-zoom-tab-security"
+          class="flex-1 py-2 rounded-xl transition-all font-semibold flex items-center justify-center space-x-2 text-white/40 hover:text-white"
+        >
+          <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+          <span>2. Security Rules</span>
+        </button>
+        <button
+          id="btn-zoom-tab-devices"
+          class="flex-1 py-2 rounded-xl transition-all font-semibold flex items-center justify-center space-x-2 text-white/40 hover:text-white"
+        >
+          <i data-lucide="monitor" class="w-3.5 h-3.5"></i>
+          <span>3. Classroom Devices</span>
+        </button>
+      </div>
+
+      <!-- TAB 1: Host & Alternative Hosts -->
+      <div id="zoom-tab-content-host" class="space-y-4">
+        <div class="p-4 rounded-2xl bg-neutral-900/60 border border-white/10 space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-white/5">
+            <div>
+              <div class="text-xs font-bold text-white flex items-center space-x-1.5">
+                <i data-lucide="sliders" class="w-3.5 h-3.5 text-cyan-400"></i>
+                <span>Zoom Web Portal: Co-Host Feature</span>
+              </div>
+              <p class="text-[11px] text-white/50">Allow meeting host to assign co-hosts during live teaching session.</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input id="zoom-toggle-cohost" type="checkbox" checked class="sr-only peer">
+              <div class="w-9 h-5 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-500"></div>
+            </label>
+          </div>
+
+          <div class="flex items-center justify-between pt-1">
+            <div>
+              <div class="text-xs font-bold text-white flex items-center space-x-1.5">
+                <i data-lucide="user-plus" class="w-3.5 h-3.5 text-indigo-400"></i>
+                <span>Alternative Host Feature</span>
+              </div>
+              <p class="text-[11px] text-white/50">Permits co-instructors to start and run the meeting automatically.</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input id="zoom-toggle-althost" type="checkbox" checked class="sr-only peer">
+              <div class="w-9 h-5 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-500"></div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Alternative Hosts Scheduling Email Adder -->
+        <div class="p-4 rounded-2xl bg-neutral-900/60 border border-white/10 space-y-3">
+          <div class="text-xs font-bold text-white">Teachers' Official Email Addresses (Alternative Hosts)</div>
+          <p class="text-[11px] text-white/50">Add official school emails so instructors automatically receive full host privileges upon entering.</p>
+
+          <div class="flex items-center space-x-2">
+            <input
+              id="zoom-input-althost-email"
+              type="email"
+              placeholder="e.g. teacher.physics@school.edu"
+              class="flex-1 bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-white/30 focus:outline-none focus:border-cyan-500/50 font-mono"
+            >
+            <button
+              id="btn-zoom-add-althost"
+              class="px-3 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 text-xs font-mono font-medium transition-all"
+            >
+              Add Host
+            </button>
+          </div>
+
+          <div id="zoom-althosts-container" class="space-y-1.5 pt-2">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <!-- Verification Checklist -->
+        <div class="p-3.5 rounded-2xl bg-emerald-950/20 border border-emerald-500/30 flex items-start space-x-3">
+          <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0"></i>
+          <div class="text-xs space-y-0.5">
+            <div class="font-bold text-emerald-300">Meeting Verification Check</div>
+            <div class="text-[11px] text-white/70">
+              Verified in scheduled meeting details: All assigned teacher emails appear in the <span class="font-mono text-emerald-300">Alternative Hosts</span> list and will bypass the waiting room as Co-Hosts.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: In-Meeting Security & Control Rules -->
+      <div id="zoom-tab-content-security" class="hidden space-y-4">
+        <!-- Security Shield Status Banner -->
+        <div id="zoom-security-shield-card" class="p-4 rounded-2xl border transition-all bg-emerald-950/20 border-emerald-500/40 text-emerald-300">
+          <div class="flex items-center space-x-2.5">
+            <i data-lucide="shield-check" class="w-5 h-5 text-emerald-400"></i>
+            <div>
+              <div class="text-xs font-bold">In-Meeting Security Shield: ACTIVE</div>
+              <div class="text-[11px] text-white/70">Waiting Room is active & Screen Sharing restricted to Host and Co-hosts.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-neutral-900/60 border border-white/10 space-y-3.5">
+          <!-- Waiting Room -->
+          <div class="flex items-center justify-between pb-3 border-b border-white/5">
+            <div>
+              <div class="text-xs font-bold text-white flex items-center space-x-1.5">
+                <i data-lucide="lock" class="w-3.5 h-3.5 text-cyan-400"></i>
+                <span>Enable Waiting Room</span>
+              </div>
+              <p class="text-[11px] text-white/50">Controls participant entry; teacher admits students selectively.</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input id="zoom-toggle-waitingroom" type="checkbox" checked class="sr-only peer">
+              <div class="w-9 h-5 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+            </label>
+          </div>
+
+          <!-- Allow Alternative Hosts Polls & Breakouts -->
+          <div class="flex items-center justify-between pb-3 border-b border-white/5">
+            <div>
+              <div class="text-xs font-bold text-white flex items-center space-x-1.5">
+                <i data-lucide="users" class="w-3.5 h-3.5 text-indigo-400"></i>
+                <span>Alternative Hosts: Polls & Breakout Rooms</span>
+              </div>
+              <p class="text-[11px] text-white/50">Allows alternative hosts to add/edit live polls and assign breakout rooms.</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input id="zoom-toggle-polls" type="checkbox" checked class="sr-only peer">
+              <div class="w-9 h-5 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-500"></div>
+            </label>
+          </div>
+
+          <!-- Screen Sharing Rule -->
+          <div class="space-y-1.5 pt-1">
+            <div class="text-xs font-bold text-white">Default Screen Sharing Rule</div>
+            <p class="text-[11px] text-white/50">Restricts student interruptions by restricting broadcast privileges.</p>
+            <select
+              id="zoom-select-screenshare"
+              class="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500/50 font-mono"
+            >
+              <option value="Host and Co-hosts only" selected>Host and Co-hosts only (Recommended for Classroom Safety)</option>
+              <option value="All Participants">All Participants (Unrestricted)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Quick Test Call Verification Note -->
+        <div class="p-3.5 rounded-2xl bg-neutral-900/60 border border-white/10 space-y-1 text-xs font-mono">
+          <div class="text-white/60 font-semibold flex items-center space-x-1.5">
+            <i data-lucide="video" class="w-3.5 h-3.5 text-cyan-400"></i>
+            <span>Test Call Verification Check:</span>
+          </div>
+          <p class="text-[11px] text-white/50">Start a quick test call from main device: The security shield icon displays Waiting Room enabled and restricted screen sharing.</p>
+        </div>
+      </div>
+
+      <!-- TAB 3: Connect External Classroom Devices -->
+      <div id="zoom-tab-content-devices" class="hidden space-y-4">
+        <div class="p-3.5 rounded-2xl bg-neutral-900/60 border border-white/10 space-y-2 text-xs">
+          <div class="font-bold text-white flex items-center space-x-1.5">
+            <i data-lucide="monitor" class="w-3.5 h-3.5 text-cyan-400"></i>
+            <span>External Classroom Devices Integration</span>
+          </div>
+          <p class="text-[11px] text-white/60 leading-relaxed">
+            Connect secondary laptops, classroom smartboards/displays, and drawing tablets. Devices signed in with school account credentials associated with Alternative Hosts auto-join as Co-Host. Unassigned devices can be manually promoted below.
+          </p>
+        </div>
+
+        <!-- Connected Devices List -->
+        <div class="space-y-2.5">
+          <div class="text-xs font-mono text-white/40 uppercase tracking-wider">Connected Classroom Device Roster</div>
+          <div id="zoom-devices-container" class="space-y-2">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Buttons -->
+      <div class="flex items-center justify-between pt-2 border-t border-white/10">
+        <span class="text-[11px] text-white/40 font-mono">Zoom Classroom Security Suite v2.4</span>
+        <button id="btn-save-zoom-settings" class="px-5 py-2 rounded-xl bg-white text-black hover:bg-neutral-200 text-xs font-bold transition-all shadow-md">
+          Save Settings & Sync
+        </button>
       </div>
     </div>
   </div>

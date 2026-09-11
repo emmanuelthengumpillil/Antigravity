@@ -4,11 +4,13 @@ import GeminiRail from './GeminiRail';
 import DeepFocusOrb from './DeepFocusOrb';
 import CodingWorkspace from './CodingWorkspace';
 import EmergencySleepModal from './EmergencySleepModal';
+import ZoomClassroomModal from './ZoomClassroomModal';
 import { useEmotionEngine } from '../hooks/useEmotionEngine';
 import { usePomodoroMachine } from '../hooks/usePomodoroMachine';
 
 export default function FocusPlatform() {
   const [isEmergencyAlarmOpen, setIsEmergencyAlarmOpen] = useState(false);
+  const [isZoomModalOpen, setIsZoomModalOpen] = useState(false);
 
   // Background pomodoro rhythm & gamification
   const pomodoro = usePomodoroMachine();
@@ -63,6 +65,7 @@ export default function FocusPlatform() {
           points={emotion.points}
           streakMultiplier={emotion.streakMultiplier}
           isSleepingAlertActive={emotion.detectedState === 'SLEEPING'}
+          onOpenZoomModal={() => setIsZoomModalOpen(true)}
         />
 
         {/* Center: Ambient "Deep Focus" Space (Zero countdown timers) */}
@@ -84,6 +87,12 @@ export default function FocusPlatform() {
         isOpen={isEmergencyAlarmOpen}
         onDismiss={handleDismissSleepAlarm}
         earValue={emotion.earValue}
+      />
+
+      {/* Zoom Classroom Co-Host & Security Control Modal */}
+      <ZoomClassroomModal
+        isOpen={isZoomModalOpen}
+        onClose={() => setIsZoomModalOpen(false)}
       />
     </div>
   );

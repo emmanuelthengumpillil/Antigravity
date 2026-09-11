@@ -17,7 +17,11 @@ from app.models import (
     SleepAlertRequest,
     SleepAlertResponse,
     TeacherStudentStatus,
-    TeacherNudgeRequest
+    TeacherNudgeRequest,
+    ZoomSettings,
+    ZoomDevice,
+    UpdateZoomSettingsRequest,
+    PromoteDeviceRequest
 )
 from app.ml_engine import MLEngine
 from app.tutor_engine import TutorEngine
@@ -279,6 +283,79 @@ def send_teacher_nudge(nudge: TeacherNudgeRequest):
             break
 
     return {"status": "nudge_sent", "student": target_student}
+
+
+# Zoom Classroom & Co-Host Settings Store
+zoom_classroom_state = ZoomSettings(
+    co_host_enabled=True,
+    alternative_host_enabled=True,
+    alternative_hosts=["teacher.lead@school.edu", "prof.math@school.edu"],
+    waiting_room_enabled=True,
+    allow_alt_hosts_polls_breakout=True,
+    screen_share_rule="Host and Co-hosts only",
+    meeting_verified=True,
+    security_shield_active=True,
+    connected_devices=[
+        ZoomDevice(device_id="dev_host_1", name="Teacher Laptop (Primary)", device_type="Primary Laptop", role="Host", email="teacher.lead@school.edu"),
+        ZoomDevice(device_id="dev_display_1", name="Classroom Smartboard 302", device_type="Classroom Display", role="Co-Host", email="prof.math@school.edu"),
+        ZoomDevice(device_id="dev_tablet_1", name="Teacher iPad Pro", device_type="Teacher Tablet", role="Co-Host", email="teacher.lead@school.edu"),
+        ZoomDevice(device_id="dev_student_1", name="Student Laptop (You)", device_type="Student Laptop", role="Participant", email="student@school.edu")
+    ]
+)
+
+
+@app.get("/api/zoom/settings", response_model=ZoomSettings)
+def get_zoom_settings():
+    """Retrieve active Zoom Host, Alternative Host, Security, and Device Co-Host status."""
+    return zoom_classroom_state
+
+
+@app.post("/api/zoom/settings", response_model=ZoomSettings)
+def update_zoom_settings(req: UpdateZoomSettingsRequest):
+    """Updates Zoom meeting security rules, Alternative Hosts, and Screen Share restrictions."""
+    if req.co_host_enabled is not None:
+        zoom_classroom_state.co_host_enabled = req.co_host_enabled
+    if req.alternative_host_enabled is not None:
+        zoom_classroom_state.alternative_host_enabled = req.alternative_host_enabled
+    if req.alternative_hosts is not None:
+        zoom_classroom_state.alternative_hosts = req.alternative_hosts
+    if req.waiting_room_enabled is not None:
+        zoom_classroom_state.waiting_room_enabled = req.waiting_room_enabled
+    if req.allow_alt_hosts_polls_breakout is not None:
+        zoom_classroom_state.allow_alt_hosts_polls_breakout = req.allow_alt_hosts_polls_breakout
+    if req.screen_share_rule is not None:
+        zoom_classroom_state.screen_share_rule = req.screen_share_rule
+
+    # Verify meeting security shield status
+    zoom_classroom_state.security_shield_active = (
+        zoom_classroom_state.waiting_room_enabled and 
+        zoom_classroom_state.screen_share_rule == "Host and Co-hosts only"
+    )
+    zoom_classroom_state.meeting_verified = len(zoom_classroom_state.alternative_hosts) > 0
+    return zoom_classroom_state
+
+
+@app.post("/api/zoom/devices/role")
+def update_device_role(req: PromoteDeviceRequest):
+    """Promotes or changes a connected classroom device's role (Make Co-Host / Make Host)."""
+    found_device = None
+    for dev in zoom_classroom_state.connected_devices:
+        if dev.device_id == req.device_id:
+            dev.role = req.new_role
+            if req.admit_from_waiting_room:
+                dev.is_in_waiting_room = False
+            found_device = dev
+            break
+
+    if not found_device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    return {
+        "status": "device_role_updated",
+        "device": found_device,
+        "security_shield_active": zoom_classroom_state.security_shield_active
+    }
+
 
 
 

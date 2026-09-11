@@ -184,3 +184,64 @@ def test_sleep_emergency_intervention():
     assert you["status"] == "SLEEPING"
     assert you["is_sleeping_flagged"] is True
 
+
+def test_zoom_classroom_settings_and_device_promotion():
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    client = TestClient(app)
+
+    # 1. Fetch current settings
+    res = client.get("/api/zoom/settings")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["co_host_enabled"] is True
+    assert data["alternative_host_enabled"] is True
+    assert "teacher.lead@school.edu" in data["alternative_hosts"]
+    assert len(data["connected_devices"]) >= 3
+
+    # 2. Update settings: Add alternative host email & enforce security rules
+    update_res = client.post(
+        "/api/zoom/settings",
+        json={
+            "co_host_enabled": True,
+            "alternative_host_enabled": True,
+            "alternative_hosts": ["teacher.lead@school.edu", "prof.math@school.edu", "substitute.teacher@school.edu"],
+            "waiting_room_enabled": True,
+            "allow_alt_hosts_polls_breakout": True,
+            "screen_share_rule": "Host and Co-hosts only"
+        }
+    )
+    assert update_res.status_code == 200
+    updated = update_res.json()
+    assert "substitute.teacher@school.edu" in updated["alternative_hosts"]
+    assert updated["waiting_room_enabled"] is True
+    assert updated["screen_share_rule"] == "Host and Co-hosts only"
+    assert updated["security_shield_active"] is True
+    assert updated["meeting_verified"] is True
+
+    # 3. Promote an unassigned classroom device to Co-Host
+    promote_res = client.post(
+        "/api/zoom/devices/role",
+        json={
+            "device_id": "dev_student_1",
+            "new_role": "Co-Host",
+            "admit_from_waiting_room": True
+        }
+    )
+    assert promote_res.status_code == 200
+    p_data = promote_res.json()
+    assert p_data["status"] == "device_role_updated"
+    assert p_data["device"]["role"] == "Co-Host"
+    assert p_data["device"]["is_in_waiting_room"] is False
+
+    # 4. Verify 404 on nonexistent device
+    bad_res = client.post(
+        "/api/zoom/devices/role",
+        json={
+            "device_id": "dev_unknown_999",
+            "new_role": "Co-Host"
+        }
+    )
+    assert bad_res.status_code == 404
+

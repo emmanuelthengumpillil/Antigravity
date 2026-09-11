@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
-import { Activity, Flame, Trophy, Award, Sparkles, ChevronRight, ChevronLeft, ShieldCheck, Users, AlertTriangle, Send, BellRing } from 'lucide-react';
+import { Activity, Flame, Trophy, Award, Sparkles, ChevronRight, ChevronLeft, ShieldCheck, Users, AlertTriangle, Send, BellRing, Video } from 'lucide-react';
 
 interface GeminiRailProps {
   streakDays?: number;
   points?: number;
   streakMultiplier?: number;
   isSleepingAlertActive?: boolean;
+  onOpenZoomModal?: () => void;
 }
 
 export default function GeminiRail({
   streakDays = 5,
   points = 450,
   streakMultiplier = 1.0,
-  isSleepingAlertActive = false
+  isSleepingAlertActive = false,
+  onOpenZoomModal
 }: GeminiRailProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [nudgeNotification, setNudgeNotification] = useState<string | null>(null);
@@ -214,12 +216,34 @@ export default function GeminiRail({
               <span>Student C (Elena): Focusing</span>
               <span className="text-emerald-400">[EAR 0.27]</span>
             </div>
+
+            {/* Zoom Classroom Co-Host & Security Button */}
+            {onOpenZoomModal && (
+              <button
+                onClick={onOpenZoomModal}
+                className="w-full mt-2 py-1.5 px-2.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-xs font-mono font-semibold flex items-center justify-center space-x-2 transition-all shadow-sm"
+              >
+                <Video className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Zoom Co-Host & Controls</span>
+              </button>
+            )}
           </div>
         ) : (
-          <div className="relative">
-            <Users className="w-4 h-4 text-white/30" />
-            {isSleepingAlertActive && (
-              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+          <div className="flex flex-col items-center space-y-3">
+            <div className="relative">
+              <Users className="w-4 h-4 text-white/30" />
+              {isSleepingAlertActive && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+              )}
+            </div>
+            {onOpenZoomModal && (
+              <button
+                onClick={onOpenZoomModal}
+                title="Zoom Classroom & Security"
+                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-cyan-500/20 border border-white/10 hover:border-cyan-500/30 text-white/40 hover:text-cyan-400 flex items-center justify-center transition-all"
+              >
+                <Video className="w-3.5 h-3.5" />
+              </button>
             )}
           </div>
         )}
