@@ -37,7 +37,7 @@ export default function MultiDeviceSyncModal({
   useEffect(() => {
     if (!isOpen) return;
 
-    fetch(`http://127.0.0.1:8000/api/rooms/${roomCode}`)
+    fetch(`/api/rooms/${roomCode}`)
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (data) {
@@ -65,7 +65,7 @@ export default function MultiDeviceSyncModal({
     const cleanCode = joinCodeInput.trim().toUpperCase();
 
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/rooms/join', {
+      const res = await fetch('/api/rooms/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

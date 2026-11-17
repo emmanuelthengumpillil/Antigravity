@@ -25,7 +25,7 @@ export default function FocusPlatform() {
   useEffect(() => {
     if (emotion.detectedState === 'SLEEPING') {
       setIsEmergencyAlarmOpen(true);
-      fetch('http://127.0.0.1:8000/api/interventions/sleep-alert', {
+      fetch('/api/interventions/sleep-alert', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -52,7 +52,7 @@ export default function FocusPlatform() {
         } catch (e) {}
       }
 
-      fetch('http://127.0.0.1:8000/api/interventions/drowsy-alert', {
+      fetch('/api/interventions/drowsy-alert', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

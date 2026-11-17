@@ -44,7 +44,7 @@ export default function AITutor({
 
     // Sync mode with backend room if available
     try {
-      await fetch(`http://127.0.0.1:8000/api/rooms/${roomCode}/mode`, {
+      await fetch(`/api/rooms/${roomCode}/mode`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ new_mode: newMode })
@@ -85,7 +85,7 @@ export default function AITutor({
 
     // Attempt backend sync
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/rooms/${roomCode}/chat`, {
+      const res = await fetch(`/api/rooms/${roomCode}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

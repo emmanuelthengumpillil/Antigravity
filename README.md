@@ -46,6 +46,21 @@ python -m pytest tests/test_backend.py
 
 ---
 
+## ⚡ Deploy to Vercel (1-Click Hosting)
+
+Deploy FocusMind to Vercel with zero configuration:
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Femmanuelthengumpillil%2FAntigravity)
+
+### Steps to Host on Vercel:
+1. Visit **[Vercel New Project](https://vercel.com/new)**.
+2. Select and import **`emmanuelthengumpillil/Antigravity`**.
+3. Keep default settings (the project includes `vercel.json`, `public/` CDN assets, and `api/index.py` serverless functions).
+4. *(Optional)* Add your `GEMINI_API_KEY` under **Environment Variables** if using custom Gemini interaction keys.
+5. Click **Deploy**. Your live web app will be instantly available on a free global HTTPS `.vercel.app` domain.
+
+---
+
 ## 🌟 Key Architecture & Capabilities
 
 ```

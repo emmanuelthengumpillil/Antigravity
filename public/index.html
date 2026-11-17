@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FocusMind — Ambient OLED Coding & Deep Focus Platform</title>
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            oled: '#000000',
+            panel: '#070709',
+            card: '#0a0a0c'
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.4/dist/confetti.browser.min.js"></script>
+  <!-- QR Code Generator -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <!-- MediaPipe Face Mesh & Camera Utils -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-black text-white w-screen h-screen overflow-hidden flex flex-col font-sans antialiased selection:bg-cyan-500/20 selection:text-white relative select-none">
+
+  <!-- 1-Minute Drowsiness Notification Banner -->
+  <div id="banner-drowsy-1min" class="hidden fixed top-20 left-1/2 -translate-x-1/2 z-50 w-full max-w-lg p-4 select-none animate-fadeIn">
+    <div class="rounded-2xl bg-amber-950/95 border-2 border-amber-500/80 p-4 shadow-2xl shadow-amber-950/90 backdrop-blur-xl flex items-start space-x-3.5 text-white">
+      <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 flex-shrink-0 animate-bounce">
+        <i data-lucide="bell-ring" class="w-5 h-5"></i>
+      </div>
+      <div class="flex-1 space-y-1">
+        <div class="flex items-center justify-between">
+          <div class="text-xs font-bold text-amber-300 font-mono flex items-center space-x-1.5">
+            <span>PROLONGED DROWSINESS (1 MINUTE)</span>
+            <span class="px-1.5 py-0.5 rounded bg-amber-500/30 text-[10px] text-amber-200">NOTIFICATION SENT</span>
+          </div>
+          <span class="text-[10px] font-mono text-white/50">Just now</span>
+        </div>
+        <p class="text-xs text-white/80 leading-snug">
+          Continuous drowsiness detected for 60 seconds. Push notification dispatched to your device & teacher monitor flagged.
+        </p>
+        <div class="pt-2 flex items-center space-x-2.5">
+          <button id="btn-dismiss-drowsy" class="px-3.5 py-1.5 rounded-xl bg-white text-black text-xs font-bold font-mono hover:bg-neutral-200 transition-all shadow-md active:scale-95">
+            I'm Awake & Focused
+          </button>
+          <span class="text-[11px] text-amber-200/80 font-mono">Tip: Stand up, stretch, or drink water!</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 1. Top: Rebuilt Dynamic Island (Real-Time Camera Detection & Streak)       -->
+  <!-- ========================================================================= -->
+  <header class="fixed top-3 left-1/2 -translate-x-1/2 z-50 select-none">
+    <div 
+      id="dynamic-island"
+      class="h-14 md:h-16 px-4 md:px-5 rounded-full bg-[#0a0a0a] border border-white/10 shadow-2xl backdrop-blur-xl flex items-center space-x-3.5 transition-all duration-300 hover:border-white/20 hover:scale-[1.02] cursor-pointer"
+      style="box-shadow: 0 10px 30px rgba(0,0,0,0.9), 0 0 15px rgba(255,255,255,0.02);"
+      title="Click to expand Live Telemetry & Streak HUD"
+    >
+      <!-- Interactive Robot Companion (Left) -->
+      <div id="robot-avatar-container" class="relative flex items-center cursor-pointer">
+        <span id="robot-zzz" class="hidden absolute -top-3.5 right-0 font-mono font-bold text-[10px] text-amber-300 animate-bounce">Zzz...</span>
+        <svg id="robot-svg" viewBox="0 0 44 44" width="42" height="42" class="transform transition-transform duration-300 hover:scale-105">
+          <line x1="22" y1="2" x2="22" y2="8" stroke="#52525b" stroke-width="2" stroke-linecap="round" />
+          <circle id="robot-antenna-light" cx="22" cy="2" r="2" fill="#06b6d4" class="animate-pulse" />
+
+          <rect id="robot-chassis" x="6" y="8" width="32" height="28" rx="9" fill="#0f0f11" stroke="#27272a" stroke-width="1.5" />
+          <rect x="9" y="11" width="26" height="22" rx="6" fill="#000000" />
+
+          <g id="robot-face-features">
+            <!-- Normal Awake Eyes -->
+            <circle id="robot-eye-left" cx="16" cy="18" r="3.2" fill="#06b6d4" />
+            <circle id="robot-eye-left-glint" cx="15.2" cy="17" r="1" fill="#ffffff" opacity="0.9" />
+
+            <circle id="robot-eye-right" cx="28" cy="18" r="3.2" fill="#06b6d4" />
+            <circle id="robot-eye-right-glint" cx="27.2" cy="17" r="1" fill="#ffffff" opacity="0.9" />
+
+            <!-- Blinking Eye Lines -->
+            <line id="robot-blink-left" x1="13" y1="18" x2="19" y2="18" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" class="hidden" />
+            <line id="robot-blink-right" x1="25" y1="18" x2="31" y2="18" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" class="hidden" />
+
+            <!-- Drooping Sleepy Eyes -->
+            <path id="robot-sleep-left" d="M 13 19 Q 16 22 19 19" fill="transparent" stroke="#f87171" stroke-width="2" stroke-linecap="round" class="hidden" />
+            <path id="robot-sleep-right" d="M 25 19 Q 28 22 31 19" fill="transparent" stroke="#f87171" stroke-width="2" stroke-linecap="round" class="hidden" />
+
+            <!-- Mouth -->
+            <path id="robot-mouth" d="M 16 27 L 28 27" fill="transparent" stroke="#06b6d4" stroke-width="1.8" stroke-linecap="round" class="transition-all duration-300" />
+          </g>
+        </svg>
+      </div>
+
+      <div class="w-px h-6 bg-white/10"></div>
+
+      <!-- Real-Time Camera Detected State Badge (Zero Manual Selectors) -->
+      <div class="flex items-center space-x-1.5">
+        <span id="island-detected-badge" class="px-2.5 py-1 rounded-full text-xs font-mono font-bold tracking-wider border border-cyan-500/30 text-cyan-400 bg-cyan-500/10">
+          [FOCUSED]
+        </span>
+        <span id="island-drowsy-badge" class="hidden px-2 py-0.5 rounded-full text-[11px] font-mono font-bold tracking-wider border border-amber-500/40 text-amber-300 bg-amber-500/20 animate-pulse flex items-center space-x-1" title="Drowsiness timer (Alert dispatches at 60s)">
+          <i data-lucide="timer" class="w-3 h-3"></i>
+          <span id="island-drowsy-timer-text">0s / 60s</span>
+        </span>
+      </div>
+
+      <!-- Camera Status Indicator Dot / Fallback -->
+      <div id="island-camera-status" class="flex items-center">
+        <span id="cam-dot-streaming" class="relative flex h-2 w-2" title="Webcam Live • Continuous Facial Inference">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+        </span>
+        <span id="cam-dot-pending" class="hidden relative h-2 w-2" title="Initializing Camera...">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+        </span>
+        <span id="cam-dot-denied" class="hidden items-center text-red-400 text-[10px] font-mono" title="Camera Access Denied or Unavailable">
+          <i data-lucide="video-off" class="w-3 h-3 text-red-400 mr-1"></i>
+          <span class="hidden sm:inline">Offline</span>
+        </span>
+      </div>
+
+      <div class="w-px h-6 bg-white/10"></div>
+
+      <!-- Visible Persistent Streak Counter inside the Dynamic Island -->
+      <div class="flex items-center space-x-2 text-xs font-mono">
+        <div class="flex items-center space-x-1 text-amber-400">
+          <i data-lucide="flame" class="w-3.5 h-3.5 fill-amber-400/20"></i>
+          <span id="island-streak-days" class="font-bold">5d</span>
+        </div>
+        <span class="text-white/20">•</span>
+        <div class="flex items-center space-x-1 text-white/80">
+          <i data-lucide="trophy" class="w-3 h-3 text-indigo-400"></i>
+          <span id="island-streak-points">450 pts</span>
+        </div>
+      </div>
+
+      <!-- Hidden Metric Revealed on Hover -->
+      <div id="hidden-metric-container" class="hidden md:flex items-center pl-1">
+        <span id="revealed-time-text" class="text-[11px] font-mono text-cyan-300">24:48</span>
+      </div>
+
+      <div class="w-px h-6 bg-white/10"></div>
+
+      <!-- User Profile Avatar & Face Lock Button -->
+      <div class="flex items-center">
+        <button id="btn-open-profile-modal" class="relative group flex items-center justify-center focus:outline-none" title="User Profile & Face Lock Tracking">
+          <div id="island-profile-avatar-placeholder" class="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-500/30 to-indigo-500/30 border border-cyan-500/40 flex items-center justify-center text-cyan-300 text-xs font-mono font-bold overflow-hidden shadow-sm group-hover:border-cyan-400 transition-all">
+            <i data-lucide="user" class="w-4 h-4 text-cyan-300"></i>
+          </div>
+          <img id="island-profile-avatar-img" src="" alt="Profile" class="hidden w-8 h-8 rounded-full object-cover border border-cyan-400 shadow-sm" />
+          <span id="island-face-lock-dot" class="hidden absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-black" title="Target Person Lock Active"></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- Master Layout: 3-Column Architecture                                      -->
+  <!-- ========================================================================= -->
+  <div class="flex-1 flex w-full h-full pt-16 overflow-hidden">
+
+    <!-- Left: Collapsible Gemini-Style Rail -->
+    <aside id="gemini-rail" class="h-full bg-[#0a0a0c]/90 border-r border-white/10 backdrop-blur-2xl transition-all duration-300 ease-spring z-40 flex flex-col justify-between py-5 w-16 px-2 hover:w-80 hover:px-4 shadow-2xl">
+      <div class="flex flex-col items-center space-y-4">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500/20 via-cyan-500/20 to-emerald-500/20 border border-white/10 flex items-center justify-center text-cyan-400">
+          <i data-lucide="activity" class="w-5 h-5"></i>
+        </div>
+
+        <div class="flex flex-col items-center justify-center pt-2">
+          <!-- Flow State Concentric Activity Rings -->
+          <div class="relative w-28 h-28 flex items-center justify-center">
+            <svg class="w-28 h-28 transform -rotate-90">
+              <!-- Outer Ring: Deep Focus (Cyan) -->
+              <circle cx="50%" cy="50%" r="42" stroke="#06b6d4" stroke-width="5" stroke-opacity="0.15" fill="transparent" />
+              <circle id="ring-flow-focused" cx="50%" cy="50%" r="42" stroke="#06b6d4" stroke-width="5" stroke-dasharray="263.89" stroke-dashoffset="0" stroke-linecap="round" fill="transparent" class="transition-all duration-700 ease-out" />
+
+              <!-- Middle Ring: Engaged Flow (Emerald) -->
+              <circle cx="50%" cy="50%" r="32" stroke="#10b981" stroke-width="5" stroke-opacity="0.15" fill="transparent" />
+              <circle id="ring-flow-engaged" cx="50%" cy="50%" r="32" stroke="#10b981" stroke-width="5" stroke-dasharray="201.06" stroke-dashoffset="0" stroke-linecap="round" fill="transparent" class="transition-all duration-700 ease-out" />
+
+              <!-- Inner Ring: Drowsy / Restorative (Amber) -->
+              <circle cx="50%" cy="50%" r="22" stroke="#f59e0b" stroke-width="5" stroke-opacity="0.15" fill="transparent" />
+              <circle id="ring-flow-drowsy" cx="50%" cy="50%" r="22" stroke="#f59e0b" stroke-width="5" stroke-dasharray="138.23" stroke-dashoffset="0" stroke-linecap="round" fill="transparent" class="transition-all duration-700 ease-out" />
+            </svg>
+            <div class="absolute flex flex-col items-center justify-center text-center pointer-events-none">
+              <span class="text-[9px] font-mono text-white/50 uppercase tracking-wider">FLOW</span>
+              <span id="rail-flow-score" class="text-xs font-bold font-mono text-cyan-400">96%</span>
+            </div>
+          </div>
+
+          <!-- Working Live Time In Each State of Mind Panel -->
+          <div class="rail-expanded-content hidden w-full mt-3 space-y-2">
+            <div class="text-[10px] font-mono text-white/40 uppercase tracking-wider pb-1 border-b border-white/5 flex items-center justify-between">
+              <span>Time in States of Mind</span>
+              <span class="text-[9px] text-emerald-400">● Live Active</span>
+            </div>
+            
+            <!-- Focused State Time -->
+            <div class="p-1.5 rounded-xl bg-cyan-950/20 border border-cyan-500/20 flex items-center justify-between text-[11px] font-mono">
+              <div class="flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                <span class="text-white/80">Deep Focus</span>
+              </div>
+              <span id="state-time-focused" class="text-cyan-300 font-bold">00:00</span>
+            </div>
+
+            <!-- Engaged State Time -->
+            <div class="p-1.5 rounded-xl bg-emerald-950/20 border border-emerald-500/20 flex items-center justify-between text-[11px] font-mono">
+              <div class="flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span class="text-white/80">Engaged / Flow</span>
+              </div>
+              <span id="state-time-engaged" class="text-emerald-300 font-bold">00:00</span>
+            </div>
+
+            <!-- Present / Idle State Time -->
+            <div class="p-1.5 rounded-xl bg-indigo-950/20 border border-indigo-500/20 flex items-center justify-between text-[11px] font-mono">
+              <div class="flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+                <span class="text-white/80">Present Calm</span>
+              </div>
+              <span id="state-time-present" class="text-indigo-300 font-bold">00:00</span>
+            </div>
+
+            <!-- Drowsy / Fatigued State Time -->
+            <div class="p-1.5 rounded-xl bg-amber-950/20 border border-amber-500/20 flex items-center justify-between text-[11px] font-mono">
+              <div class="flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                <span class="text-white/80">Drowsy / Fatigue</span>
+              </div>
+              <span id="state-time-drowsy" class="text-amber-300 font-bold">00:00</span>
+            </div>
+
+            <!-- Away / Absent State Time -->
+            <div class="p-1.5 rounded-xl bg-zinc-900/60 border border-zinc-700/30 flex items-center justify-between text-[11px] font-mono">
+              <div class="flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded-full bg-zinc-400"></span>
+                <span class="text-white/60">Away / Paused</span>
+              </div>
+              <span id="state-time-away" class="text-zinc-400 font-bold">00:00</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Streak Score Board -->
+      <div class="w-full space-y-3">
+        <div class="rail-compact-content flex flex-col items-center space-y-3 text-white/40">
+          <div class="flex flex-col items-center text-amber-400">
+            <i data-lucide="flame" class="w-4 h-4"></i>
+            <span id="rail-streak-days-compact" class="text-[10px] font-mono font-bold mt-0.5">5d</span>
+          </div>
+          <div class="flex flex-col items-center text-indigo-400">
+            <i data-lucide="trophy" class="w-4 h-4"></i>
+            <span id="rail-streak-pts-compact" class="text-[10px] font-mono font-bold mt-0.5">450</span>
+          </div>
+        </div>
+
+        <div class="rail-expanded-content hidden p-3 rounded-2xl bg-neutral-900/60 border border-white/10 space-y-2.5">
+          <div class="text-[10px] font-mono text-white/40 uppercase tracking-wider flex items-center justify-between">
+            <span>Score Board</span>
+            <span class="text-emerald-400">● Live Streak Sync</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2 text-amber-400">
+              <i data-lucide="flame" class="w-4 h-4 fill-amber-400/20"></i>
+              <span id="rail-streak-days-expanded" class="font-bold text-sm font-mono">5 Days Streak</span>
+            </div>
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2 text-indigo-400">
+              <i data-lucide="trophy" class="w-4 h-4"></i>
+              <span id="rail-streak-pts-expanded" class="font-bold text-sm font-mono">450 Pts (1.0x)</span>
+            </div>
+          </div>
+          <div class="pt-2 border-t border-white/5 text-[10px] font-mono text-white/50 space-y-1">
+            <div>+10 pts: Every 30s sustained focus</div>
+            <div>+100 pts: Full Session Completed</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Teacher Live Monitor & Zoom Classroom Trigger -->
+      <div class="w-full flex flex-col items-center space-y-2">
+        <div class="rail-compact-content flex flex-col items-center space-y-2">
+          <div class="relative">
+            <i data-lucide="users" class="w-4 h-4 text-white/30"></i>
+            <span id="rail-compact-sleep-ping" class="hidden absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+          </div>
+          <button id="btn-open-sync-compact" title="Multi-Device Pairing & Sync" class="w-8 h-8 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 flex items-center justify-center transition-all shadow-sm">
+            <i data-lucide="qr-code" class="w-3.5 h-3.5"></i>
+          </button>
+          <button id="btn-open-zoom-compact" title="Zoom Classroom & Co-Hosts" class="w-8 h-8 rounded-xl bg-white/5 hover:bg-cyan-500/20 border border-white/10 hover:border-cyan-500/30 text-white/40 hover:text-cyan-400 flex items-center justify-center transition-all">
+            <i data-lucide="video" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+
+        <div class="rail-expanded-content hidden w-full p-3 rounded-2xl bg-neutral-900/80 border border-white/10 space-y-2">
+          <!-- Multi-Device Sync Trigger -->
+          <button id="btn-open-sync-expanded" class="w-full py-1.5 px-2.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-indigo-500/20 hover:from-cyan-500/30 hover:to-indigo-500/30 border border-cyan-500/40 text-cyan-300 text-xs font-mono font-semibold flex items-center justify-center space-x-2 transition-all shadow-sm">
+            <i data-lucide="qr-code" class="w-3.5 h-3.5 text-cyan-400"></i>
+            <span>Multi-Device Sync (QR)</span>
+          </button>
+
+          <div class="flex items-center justify-between text-[11px] font-mono text-white/40 border-b border-white/5 pb-1">
+            <div class="flex items-center space-x-1.5">
+              <i data-lucide="users" class="w-3.5 h-3.5 text-indigo-400"></i>
+              <span>Teacher Live Monitor</span>
+            </div>
+            <span class="text-emerald-400">Connected</span>
+          </div>
+
+          <div id="teacher-student-you-card" class="p-2 rounded-xl border border-white/5 bg-white/5 text-xs font-mono text-white/80 transition-all">
+            <div class="flex items-center justify-between">
+              <span class="font-bold">Student: You</span>
+              <span id="teacher-student-you-status" class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400">
+                Focusing [EAR 0.28]
+              </span>
+            </div>
+
+            <div id="teacher-nudge-action-container" class="hidden mt-2 pt-1.5 border-t border-red-500/20">
+              <button id="btn-teacher-send-nudge" class="w-full py-1 rounded bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-[10px] text-red-200 font-bold">
+                Teacher: Send Remote Wake-Up Nudge
+              </button>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between text-[11px] font-mono text-white/60 pt-1">
+            <span>Student B (Alex): Focusing</span>
+            <span class="text-emerald-400">[EAR 0.29]</span>
+          </div>
+          <div class="flex items-center justify-between text-[11px] font-mono text-white/60">
+            <span>Student C (Elena): Focusing</span>
+            <span class="text-emerald-400">[EAR 0.27]</span>
+          </div>
+
+          <!-- Zoom Classroom & Co-Host Manager Trigger -->
+          <button id="btn-open-zoom-expanded" class="w-full mt-2 py-1.5 px-2.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-xs font-mono font-semibold flex items-center justify-center space-x-2 transition-all shadow-sm">
+            <i data-lucide="video" class="w-3.5 h-3.5 text-cyan-400"></i>
+            <span>Zoom Co-Host & Controls</span>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Center: Ambient "Deep Focus" Space -->
+    <main class="flex-1 flex flex-col items-center justify-center relative p-6 overflow-hidden bg-gradient-to-b from-black via-[#040407] to-black">
+      <div id="orb-ambient-aura" class="absolute w-72 h-72 rounded-full blur-[100px] transition-all duration-1000 pointer-events-none bg-cyan-500/20"></div>
+
+      <div class="relative flex items-center justify-center">
+        <svg class="w-80 h-80 md:w-96 md:h-96 transform -rotate-90">
+          <circle cx="50%" cy="50%" r="160" stroke="currentColor" stroke-width="1.5" fill="transparent" class="text-white/5" />
+          <circle id="orb-hairline-progress" cx="50%" cy="50%" r="160" stroke="currentColor" stroke-width="1.5" stroke-dasharray="1005.3" stroke-dashoffset="653.4" stroke-linecap="round" fill="transparent" class="stroke-cyan-400/40 transition-all duration-1000 ease-linear" />
+        </svg>
+
+        <div id="orb-resonator" class="absolute w-64 h-64 md:w-72 md:h-72 rounded-full bg-gradient-to-tr from-cyan-500/20 via-indigo-600/15 to-transparent border border-white/5 backdrop-blur-2xl animate-breathe" style="box-shadow: 0 0 60px rgba(6,182,212,0.22);"></div>
+
+        <div class="absolute w-48 h-48 md:w-56 md:h-56 rounded-full bg-[#0a0a0a]/90 border border-white/10 flex items-center justify-center shadow-inner">
+          <div class="w-32 h-32 md:w-36 md:h-36 rounded-full bg-black flex flex-col items-center justify-center p-2 text-center border border-white/5 shadow-2xl relative">
+            <span class="text-[9px] font-mono tracking-[0.25em] uppercase text-cyan-400/80 mb-0.5" id="orb-flow-header">FLOW STATE</span>
+            <!-- Center Text: FOCUS MIND -->
+            <span id="orb-center-text" class="text-sm md:text-base font-bold tracking-[0.25em] text-white/95 drop-shadow text-center transition-all duration-300">
+              FOCUS MIND
+            </span>
+            <span id="orb-cadence-label" class="text-[9px] font-mono tracking-widest mt-0.5 text-cyan-300/60">CALM CADENCE</span>
+            
+            <!-- Adaptive Test Interactive Trigger in the centre of the sphere -->
+            <button id="btn-open-adaptive-test" class="mt-2 px-2.5 py-0.5 rounded-full bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-[10px] font-mono font-semibold text-cyan-300 flex items-center space-x-1 transition-all active:scale-95 shadow-sm hover:border-cyan-400 group cursor-pointer" title="Take Adaptive Focus & Comprehension Test">
+              <i data-lucide="brain-circuit" class="w-3 h-3 text-cyan-400 group-hover:rotate-12 transition-transform"></i>
+              <span>Adaptive Test</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-8 flex items-center space-x-2 text-white/30 text-xs font-mono tracking-widest uppercase">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+        <span>4-Second Rhythmic Cycle</span>
+      </div>
+    </main>
+
+    <!-- Right: LeetCode Workspace + Socratic AI Tutor -->
+    <aside class="w-[450px] lg:w-[500px] h-full border-l border-white/10 bg-[#070709]/80 backdrop-blur-xl flex flex-col overflow-hidden p-3 space-y-3">
+      <div class="flex-1 bg-[#0a0a0c] border border-white/10 rounded-2xl flex flex-col overflow-hidden shadow-2xl">
+        <div class="px-4 py-2.5 bg-neutral-950 border-b border-white/10 flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <button id="tab-btn-problem" class="flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-medium text-white/40 hover:text-white hover:bg-white/5 transition-all">
+              <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+              <span>Problem</span>
+            </button>
+            <button id="tab-btn-code" class="flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-medium bg-white/10 text-white font-semibold transition-all">
+              <i data-lucide="code-2" class="w-3.5 h-3.5"></i>
+              <span>Workspace</span>
+            </button>
+          </div>
+
+          <div class="flex items-center space-x-2">
+            <div class="flex items-center p-0.5 rounded-lg bg-neutral-900 border border-white/10 text-[11px] font-mono">
+              <button id="btn-lang-python" class="px-2 py-0.5 rounded-md bg-white/15 text-white font-bold transition-all">Python</button>
+              <button id="btn-lang-ts" class="px-2 py-0.5 rounded-md text-white/40 hover:text-white transition-all">TS</button>
+            </div>
+
+            <button id="btn-run-code" class="flex items-center space-x-1.5 px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 text-xs font-mono font-medium transition-all active:scale-95">
+              <i data-lucide="play" class="w-3 h-3 fill-current"></i>
+              <span id="run-code-label">Run</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="pane-problem" class="hidden p-4 space-y-3 overflow-y-auto text-xs text-white/80 leading-relaxed font-sans">
+          <div class="flex items-center justify-between pb-2 border-b border-white/10">
+            <h3 class="text-sm font-bold text-white tracking-tight">1. Two Sum</h3>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">EASY</span>
+          </div>
+          <p>Given an array of integers <code class="text-cyan-300 font-mono">nums</code> and an integer <code class="text-cyan-300 font-mono">target</code>, return indices of the two numbers such that they add up to target.</p>
+          <div class="bg-neutral-900/60 p-2.5 rounded-xl border border-white/5 space-y-1 font-mono text-[11px]">
+            <div class="text-white/40">Example 1:</div>
+            <div>Input: nums = [2,7,11,15], target = 9</div>
+            <div class="text-emerald-400">Output: [0,1] (nums[0] + nums[1] == 9)</div>
+          </div>
+        </div>
+
+        <div id="pane-code" class="flex-1 flex flex-col p-2 bg-[#000000]">
+          <textarea id="code-editor" spellcheck="false" class="flex-1 w-full bg-transparent text-white/90 font-mono text-xs p-2 resize-none focus:outline-none leading-relaxed selection:bg-cyan-500/20"></textarea>
+        </div>
+
+        <div id="pane-output" class="hidden p-3 bg-black/95 border-t border-white/10 font-mono text-[11px] text-white/80 space-y-1">
+          <div class="flex items-center justify-between text-white/40 pb-1 border-b border-white/5">
+            <span class="flex items-center space-x-1">
+              <i data-lucide="terminal" class="w-3 h-3"></i>
+              <span>Execution Output</span>
+            </span>
+            <button id="btn-close-output" class="hover:text-white">✕</button>
+          </div>
+          <pre id="output-text" class="whitespace-pre-wrap"></pre>
+        </div>
+      </div>
+
+      <div class="w-full bg-[#0d0d10] border border-white/10 rounded-2xl flex flex-col overflow-hidden shadow-xl">
+        <div id="tutor-header" class="px-3.5 py-2.5 bg-neutral-950/90 border-b border-white/10 flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <div id="tutor-bot-icon-container" class="w-6 h-6 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center border border-cyan-500/30">
+              <i id="tutor-bot-icon" data-lucide="graduation-cap" class="w-3.5 h-3.5"></i>
+            </div>
+            <div>
+              <span id="tutor-mode-title" class="text-xs font-semibold text-white/90">Teacher Bot Mode</span>
+              <span id="tutor-persona-subtitle" class="block text-[10px] text-cyan-400/80 font-mono">Expert Socratic Educator</span>
+            </div>
+          </div>
+
+          <!-- Dual Mode Switcher -->
+          <div class="flex items-center bg-black/60 p-0.5 rounded-lg border border-white/10">
+            <button id="btn-mode-teacher" class="px-2 py-1 rounded-md text-[10px] font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 transition-all flex items-center space-x-1" title="Teacher Mode: Expert Socratic Educator">
+              <i data-lucide="graduation-cap" class="w-3 h-3"></i>
+              <span>Teacher</span>
+            </button>
+            <button id="btn-mode-student" class="px-2 py-1 rounded-md text-[10px] font-mono font-medium text-white/40 hover:text-white transition-all flex items-center space-x-1" title="Feynman Student Mode: You teach the AI">
+              <i data-lucide="brain" class="w-3 h-3"></i>
+              <span>Feynman</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="tutor-content" class="flex flex-col">
+          <div id="tutor-chat-history" class="p-3 space-y-2.5 max-h-52 overflow-y-auto text-xs font-sans">
+            <div class="p-2.5 rounded-xl bg-white/5 border border-white/10 text-white/80 leading-relaxed">
+              Hello! I'm your Teacher Bot. What concept or problem would you like to break down step-by-step today?
+            </div>
+          </div>
+
+          <div class="p-2.5 bg-neutral-950 border-t border-white/10 flex items-center space-x-2">
+            <input id="tutor-input" type="text" placeholder="Ask a question or explain to Sam..." class="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white placeholder-white/30 focus:outline-none focus:border-cyan-500/40">
+            <button id="btn-tutor-send" class="p-1.5 rounded-xl bg-white text-black hover:bg-neutral-200 transition-colors">
+              <i data-lucide="send" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 2. Dynamic Island Expanded Live Telemetry & Streak Modal (Click Action)   -->
+  <!-- ========================================================================= -->
+  <div id="modal-island-expanded" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn select-none">
+    <div class="w-full max-w-xl rounded-3xl bg-neutral-950 border border-white/15 p-6 shadow-2xl space-y-5">
+      <div class="flex items-center justify-between pb-3 border-b border-white/10">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+            <i data-lucide="activity" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white tracking-tight">Vision Telemetry & Streak HUD</h3>
+            <p class="text-[11px] text-white/40 font-mono">Real-Time Client-Side Biometrics</p>
+          </div>
+        </div>
+        <button id="btn-close-island-modal" class="p-1 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-colors">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Live Video Feed in Expanded HUD -->
+      <div class="relative w-full h-56 bg-black rounded-2xl overflow-hidden border border-white/10 flex items-center justify-center">
+        <video id="hud-camera-preview" autoplay playsinline muted class="w-full h-full object-cover transform -scale-x-100"></video>
+        
+        <div id="cam-offline-banner" class="hidden flex-col items-center justify-center space-y-2 text-white/40">
+          <i data-lucide="video-off" class="w-8 h-8 text-white/20"></i>
+          <span class="text-xs font-mono">Camera Offline / Blocked</span>
+          <button id="btn-re-init-cam" class="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-mono transition-all">
+            Retry Access
+          </button>
+        </div>
+
+        <div class="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-black/80 backdrop-blur border border-white/10 flex items-center space-x-2 text-[11px] font-mono">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <span class="text-white/90">State: <strong id="hud-state-label" class="text-emerald-400">[FOCUSED]</strong></span>
+        </div>
+
+        <div class="absolute bottom-3 right-3 px-2.5 py-1 rounded-lg bg-black/80 backdrop-blur border border-white/10 text-[10px] font-mono text-emerald-400 flex items-center space-x-1.5">
+          <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+          <span>Zero Server Upload • On-Device Only</span>
+        </div>
+      </div>
+
+      <!-- Real-time Tracking Data Grid -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs font-mono">
+        <div class="p-2.5 rounded-xl bg-neutral-900/60 border border-white/5 space-y-0.5">
+          <div class="text-[10px] text-white/40">Presence</div>
+          <div id="hud-val-presence" class="text-white font-bold">98% Confident</div>
+        </div>
+        <div class="p-2.5 rounded-xl bg-neutral-900/60 border border-white/5 space-y-0.5">
+          <div class="text-[10px] text-white/40">Eye Aspect (EAR)</div>
+          <div id="hud-val-ear" class="text-white font-bold">0.28 ✓ Normal</div>
+        </div>
+        <div class="p-2.5 rounded-xl bg-neutral-900/60 border border-white/5 space-y-0.5">
+          <div class="text-[10px] text-white/40">Gaze Stability</div>
+          <div id="hud-val-gaze" class="text-white font-bold">98% Flow</div>
+        </div>
+        <div class="p-2.5 rounded-xl bg-neutral-900/60 border border-white/5 space-y-0.5">
+          <div class="text-[10px] text-white/40">Head Posture</div>
+          <div id="hud-val-posture" class="text-white font-bold">Upright (0°)</div>
+        </div>
+      </div>
+
+      <!-- Streak Gamification Breakdown -->
+      <div class="p-3.5 rounded-2xl bg-neutral-900/40 border border-white/10 space-y-2">
+        <div class="flex items-center justify-between text-xs font-mono">
+          <span class="text-white/50">Continuous Streak Tracker:</span>
+          <span class="text-amber-400 font-bold flex items-center space-x-1">
+            <i data-lucide="flame" class="w-3.5 h-3.5 fill-current"></i>
+            <span id="hud-streak-days">5 Days Consecutive</span>
+          </span>
+        </div>
+        <div class="flex items-center justify-between text-xs font-mono">
+          <span class="text-white/50">Total Accumulated Points:</span>
+          <span id="hud-streak-pts" class="text-indigo-400 font-bold">450 Pts (1.0x Multiplier)</span>
+        </div>
+        <div class="text-[11px] font-mono text-emerald-400/80 pt-1 border-t border-white/5 flex items-center space-x-1">
+          <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+          <span>+10 pts continuously awarded for every 30s maintained focus.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Zoom Classroom & Co-Host Modal -->
+  <div id="modal-zoom-classroom" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-xl p-4 select-none animate-fadeIn">
+    <div class="w-full max-w-2xl rounded-3xl bg-neutral-950 border border-white/15 p-6 md:p-8 shadow-2xl shadow-black space-y-6 text-white max-h-[90vh] overflow-y-auto">
+      
+      <!-- Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-white/10">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+            <i data-lucide="video" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-bold tracking-tight text-white">Zoom Classroom & Co-Host Manager</h2>
+            <p class="text-xs text-white/50 font-mono">Web Portal Configuration & Classroom Co-Hosts</p>
+          </div>
+        </div>
+        <button id="btn-close-zoom-modal" class="p-1 rounded-lg text-white/40 hover:text-white transition-colors">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Toast Feedback -->
+      <div id="zoom-toast" class="hidden p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-mono animate-fadeIn flex items-center space-x-2">
+        <i data-lucide="check-circle-2" class="w-4 h-4 text-cyan-400"></i>
+        <span id="zoom-toast-text">Settings updated</span>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="flex items-center space-x-2 p-1 rounded-2xl bg-neutral-900 border border-white/10 text-xs font-mono">
+        <button
+          id="btn-zoom-tab-host"
+          class="flex-1 py-2 rounded-xl transition-all font-semibold flex items-center justify-center space-x-2 bg-white/15 text-white shadow"
+        >
+          <i data-lucide="users" class="w-3.5 h-3.5"></i>
+          <span>1. Host & Alt Hosts</span>
+        </button>
+        <button
+          id="btn-zoom-tab-security"
+          class="flex-1 py-2 rounded-xl transition-all font-semibold flex items-center justify-center space-x-2 text-white/40 hover:text-white"
+        >
+          <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+          <span>2. Security Rules</span>
+        </button>
+        <button
+          id="btn-zoom-tab-devices"
+          class="flex-1 py-2 rounded-xl transition-all font-semibold flex items-center justify-center space-x-2 text-white/40 hover:text-white"
+        >
+          <i data-lucide="monitor" class="w-3.5 h-3.5"></i>
+          <span>3. Classroom Devices</span>
+        </button>
+      </div>
+
+      <!-- TAB 1: Host & Alternative Hosts -->
+      <div id="zoom-tab-content-host" class="space-y-4">
+        <div class="p-4 rounded-2xl bg-neutral-900/60 border border-white/10 space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-white/5">
+            <div>
+              <div class="text-xs font-bold text-white flex items-center space-x-1.5">
+                <i data-lucide="sliders" class="w-3.5 h-3.5 text-cyan-400"></i>
+                <span>Zoom Web Portal: Co-Host Feature</span>
+              </div>
+              <p class="text-[11px] text-white/50">Allow meeting host to assign co-hosts during live teaching session.</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input id="zoom-toggle-cohost" type="checkbox" checked class="sr-only peer">
+              <div class="w-9 h-5 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-500"></div>
+            </label>
+          </div>
+
+          <div class="flex items-center justify-between pt-1">
+            <div>
+              <div class="text-xs font-bold text-white flex items-center space-x-1.5">
+                <i data-lucide="user-plus" class="w-3.5 h-3.5 text-indigo-400"></i>
+                <span>Alternative Host Feature</span>
+              </div>
+              <p class="text-[11px] text-white/50">Permits co-instructors to start and run the meeting automatically.</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input id="zoom-toggle-althost" type="checkbox" checked class="sr-only peer">
+              <div class="w-9 h-5 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-500"></div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Alternative Hosts Scheduling Email Adder -->
+        <div class="p-4 rounded-2xl bg-neutral-900/60 border border-white/10 space-y-3">
+          <div class="text-xs font-bold text-white">Teachers' Official Email Addresses (Alternative Hosts)</div>
+          <p class="text-[11px] text-white/50">Add official school emails so instructors automatically receive full host privileges upon entering.</p>
+
+          <div class="flex items-center space-x-2">
+            <input
+              id="zoom-input-althost-email"
+              type="email"
+              placeholder="e.g. teacher.physics@school.edu"
+              class="flex-1 bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-white/30 focus:outline-none focus:border-cyan-500/50 font-mono"
+            >
+            <button
+              id="btn-zoom-add-althost"
+              class="px-3 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 text-xs font-mono font-medium transition-all"
+            >
+              Add Host
+            </button>
+          </div>
+
+          <div id="zoom-althosts-container" class="space-y-1.5 pt-2">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <!-- Verification Checklist -->
+        <div class="p-3.5 rounded-2xl bg-emerald-950/20 border border-emerald-500/30 flex items-start space-x-3">
+          <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0"></i>
+          <div class="text-xs space-y-0.5">
+            <div class="font-bold text-emerald-300">Meeting Verification Check</div>
+            <div class="text-[11px] text-white/70">
+              Verified in scheduled meeting details: All assigned teacher emails appear in the <span class="font-mono text-emerald-300">Alternative Hosts</span> list and will bypass the waiting room as Co-Hosts.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: In-Meeting Security & Control Rules -->
+      <div id="zoom-tab-content-security" class="hidden space-y-4">
+        <!-- Security Shield Status Banner -->
+        <div id="zoom-security-shield-card" class="p-4 rounded-2xl border transition-all bg-emerald-950/20 border-emerald-500/40 text-emerald-300">
+          <div class="flex items-center space-x-2.5">
+            <i data-lucide="shield-check" class="w-5 h-5 text-emerald-400"></i>
+            <div>
+              <div class="text-xs font-bold">In-Meeting Security Shield: ACTIVE</div>
+              <div class="text-[11px] text-white/70">Waiting Room is active & Screen Sharing restricted to Host and Co-hosts.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-neutral-900/60 border border-white/10 space-y-3.5">
+          <!-- Waiting Room -->
+          <div class="flex items-center justify-between pb-3 border-b border-white/5">
+            <div>
+              <div class="text-xs font-bold text-white flex items-center space-x-1.5">
+                <i data-lucide="lock" class="w-3.5 h-3.5 text-cyan-400"></i>
+                <span>Enable Waiting Room</span>
+              </div>
+              <p class="text-[11px] text-white/50">Controls participant entry; teacher admits students selectively.</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input id="zoom-toggle-waitingroom" type="checkbox" checked class="sr-only peer">
+              <div class="w-9 h-5 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+            </label>
+          </div>
+
+          <!-- Allow Alternative Hosts Polls & Breakouts -->
+          <div class="flex items-center justify-between pb-3 border-b border-white/5">
+            <div>
+              <div class="text-xs font-bold text-white flex items-center space-x-1.5">
+                <i data-lucide="users" class="w-3.5 h-3.5 text-indigo-400"></i>
+                <span>Alternative Hosts: Polls & Breakout Rooms</span>
+              </div>
+              <p class="text-[11px] text-white/50">Allows alternative hosts to add/edit live polls and assign breakout rooms.</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input id="zoom-toggle-polls" type="checkbox" checked class="sr-only peer">
+              <div class="w-9 h-5 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-500"></div>
+            </label>
+          </div>
+
+          <!-- Screen Sharing Rule -->
+          <div class="space-y-1.5 pt-1">
+            <div class="text-xs font-bold text-white">Default Screen Sharing Rule</div>
+            <p class="text-[11px] text-white/50">Restricts student interruptions by restricting broadcast privileges.</p>
+            <select
+              id="zoom-select-screenshare"
+              class="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500/50 font-mono"
+            >
+              <option value="Host and Co-hosts only" selected>Host and Co-hosts only (Recommended for Classroom Safety)</option>
+              <option value="All Participants">All Participants (Unrestricted)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Quick Test Call Verification Note -->
+        <div class="p-3.5 rounded-2xl bg-neutral-900/60 border border-white/10 space-y-1 text-xs font-mono">
+          <div class="text-white/60 font-semibold flex items-center space-x-1.5">
+            <i data-lucide="video" class="w-3.5 h-3.5 text-cyan-400"></i>
+            <span>Test Call Verification Check:</span>
+          </div>
+          <p class="text-[11px] text-white/50">Start a quick test call from main device: The security shield icon displays Waiting Room enabled and restricted screen sharing.</p>
+        </div>
+      </div>
+
+      <!-- TAB 3: Connect External Classroom Devices -->
+      <div id="zoom-tab-content-devices" class="hidden space-y-4">
+        <div class="p-3.5 rounded-2xl bg-neutral-900/60 border border-white/10 space-y-2 text-xs">
+          <div class="font-bold text-white flex items-center space-x-1.5">
+            <i data-lucide="monitor" class="w-3.5 h-3.5 text-cyan-400"></i>
+            <span>External Classroom Devices Integration</span>
+          </div>
+          <p class="text-[11px] text-white/60 leading-relaxed">
+            Connect secondary laptops, classroom smartboards/displays, and drawing tablets. Devices signed in with school account credentials associated with Alternative Hosts auto-join as Co-Host. Unassigned devices can be manually promoted below.
+          </p>
+        </div>
+
+        <!-- Connected Devices List -->
+        <div class="space-y-2.5">
+          <div class="text-xs font-mono text-white/40 uppercase tracking-wider">Connected Classroom Device Roster</div>
+          <div id="zoom-devices-container" class="space-y-2">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Buttons -->
+      <div class="flex items-center justify-between pt-2 border-t border-white/10">
+        <span class="text-[11px] text-white/40 font-mono">Zoom Classroom Security Suite v2.4</span>
+        <button id="btn-save-zoom-settings" class="px-5 py-2 rounded-xl bg-white text-black hover:bg-neutral-200 text-xs font-bold transition-all shadow-md">
+          Save Settings & Sync
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 4. Multi-Device Synchronization & Pairing Modal (QR / Code)              -->
+  <!-- ========================================================================= -->
+  <div id="modal-multi-device-sync" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn select-none">
+    <div class="w-full max-w-xl rounded-3xl bg-neutral-950 border border-white/15 p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-white/10">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500/20 to-indigo-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+            <i data-lucide="qr-code" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white tracking-tight">Multi-Device Connectivity & Sync</h3>
+            <p class="text-[11px] text-white/40 font-mono">Pair tablets, phones, and secondary monitors</p>
+          </div>
+        </div>
+        <button id="btn-close-sync-modal" class="p-1 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-colors">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Sync Status & Room Code Box -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <!-- QR Code Display Card -->
+        <div class="flex flex-col items-center justify-center p-4 rounded-2xl bg-black/60 border border-white/10 text-center space-y-3">
+          <div id="sync-qr-container" class="w-40 h-40 bg-black rounded-xl p-2 border border-white/15 flex items-center justify-center shadow-lg overflow-hidden relative">
+            <div id="loading-stanley" class="flex flex-col items-center justify-center space-y-2 p-2 text-center animate-pulse">
+              <div class="relative w-12 h-12 flex items-center justify-center">
+                <svg viewBox="0 0 44 44" width="38" height="38" class="animate-bounce">
+                  <line x1="22" y1="2" x2="22" y2="8" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" />
+                  <circle cx="22" cy="2" r="2.5" fill="#06b6d4" class="animate-ping" />
+                  <rect x="6" y="8" width="32" height="28" rx="9" fill="#0f0f11" stroke="#06b6d4" stroke-width="1.5" />
+                  <rect x="9" y="11" width="26" height="22" rx="6" fill="#000000" />
+                  <circle cx="16" cy="18" r="3.2" fill="#06b6d4" />
+                  <circle cx="28" cy="18" r="3.2" fill="#06b6d4" />
+                  <path d="M 16 26 Q 22 30 28 26" fill="transparent" stroke="#06b6d4" stroke-width="1.8" stroke-linecap="round" />
+                </svg>
+                <div class="absolute inset-0 rounded-full border border-cyan-400/30 animate-spin" style="animation-duration: 2.5s;"></div>
+              </div>
+              <div class="space-y-0.5">
+                <span class="text-[11px] font-mono text-cyan-300 font-bold block">Stanley is syncing...</span>
+                <span class="text-[9px] font-mono text-white/40 block">Generating QR Matrix</span>
+              </div>
+            </div>
+          </div>
+          <div class="text-[11px] text-white/60 font-mono">Scan with phone or tablet camera to instantly mirror session</div>
+        </div>
+
+        <!-- Room Code & Join Card -->
+        <div class="flex flex-col justify-between p-4 rounded-2xl bg-neutral-900/60 border border-white/10 space-y-3">
+          <div>
+            <div class="text-[10px] font-mono text-cyan-400 uppercase tracking-wider font-semibold">Active Session Room</div>
+            <div class="flex items-center justify-between mt-1">
+              <span id="sync-room-code-display" class="text-xl font-bold font-mono tracking-wider text-white">FM-1001</span>
+              <button id="btn-copy-room-code" class="px-2.5 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/30 text-cyan-300 text-xs font-mono flex items-center space-x-1 transition-all">
+                <i data-lucide="copy" class="w-3 h-3"></i>
+                <span id="copy-room-code-label">Copy</span>
+              </button>
+            </div>
+            <p class="text-[11px] text-white/50 mt-1">Real-time bi-directional state sync (Monaco code, AI tutor mode, and chat history).</p>
+          </div>
+
+          <div class="pt-2 border-t border-white/10 space-y-2">
+            <label class="text-[11px] font-mono text-white/70 block">Join Another Session</label>
+            <div class="flex items-center space-x-2">
+              <input id="sync-input-join-code" type="text" placeholder="e.g. FM-2045" class="flex-1 bg-black/60 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white placeholder-white/30 font-mono uppercase focus:outline-none focus:border-cyan-500/50">
+              <button id="btn-join-room" class="px-3 py-1.5 rounded-xl bg-cyan-500 text-black hover:bg-cyan-400 text-xs font-bold font-mono transition-all">
+                Join
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Connected Clients / Devices Roster -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between text-xs font-mono text-white/50 border-b border-white/10 pb-1.5">
+          <span>Active Connected Clients</span>
+          <span id="sync-devices-count" class="text-emerald-400">1 Device Online</span>
+        </div>
+        <div id="sync-devices-container" class="space-y-2">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+
+      <!-- Sync Details Footer -->
+      <div class="flex items-center justify-between pt-2 border-t border-white/10 text-[11px] font-mono text-white/40">
+        <span class="flex items-center space-x-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>WebSocket Real-Time Sync</span>
+        </span>
+        <button id="btn-new-room" class="text-cyan-400 hover:text-cyan-300 transition-colors">
+          Generate New Room
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 5. User Profile Photo & Face-Lock Tracking Modal                         -->
+  <!-- ========================================================================= -->
+  <div id="modal-user-profile" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn select-none">
+    <div class="w-full max-w-md rounded-3xl bg-neutral-950 border border-white/15 p-6 shadow-2xl space-y-5">
+      <div class="flex items-center justify-between pb-3 border-b border-white/10">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+            <i data-lucide="user-check" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white tracking-tight">Student Profile & Biometric Lock</h3>
+            <p class="text-[11px] text-white/40 font-mono">Personalized Attention & Target Face Lock</p>
+          </div>
+        </div>
+        <button id="btn-close-profile-modal" class="p-1 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-colors">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Photo Upload & Preview Container -->
+      <div class="flex flex-col items-center space-y-3">
+        <div class="relative group">
+          <div id="profile-modal-preview-placeholder" class="w-24 h-24 rounded-full bg-neutral-900 border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-white/40 hover:border-cyan-400/60 transition-all cursor-pointer overflow-hidden shadow-inner">
+            <i data-lucide="camera" class="w-6 h-6 mb-1 text-white/30"></i>
+            <span class="text-[10px] font-mono">Upload Photo</span>
+          </div>
+          <img id="profile-modal-preview-img" src="" alt="Profile" class="hidden w-24 h-24 rounded-full object-cover border-2 border-cyan-400 shadow-xl" />
+          <input type="file" id="input-profile-photo" accept="image/*" class="hidden" />
+        </div>
+        <div class="flex items-center space-x-2">
+          <button id="btn-trigger-upload-photo" class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-xs text-white font-mono flex items-center space-x-1.5 transition-all">
+            <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+            <span>Choose Image</span>
+          </button>
+          <button id="btn-remove-profile-photo" class="hidden px-2.5 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-xs text-red-400 font-mono transition-all">
+            Remove
+          </button>
+        </div>
+      </div>
+
+      <!-- User Name Field -->
+      <div class="space-y-1.5">
+        <label class="text-[11px] font-mono text-white/60">Learner Name</label>
+        <input id="input-profile-name" type="text" value="You" placeholder="Enter student name..." class="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-white/30 font-sans focus:outline-none focus:border-cyan-500/50">
+      </div>
+
+      <!-- Target Person Only Tracking Toggle -->
+      <div class="p-3.5 rounded-2xl bg-neutral-900/70 border border-white/10 space-y-2">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="scan-face" class="w-4 h-4 text-emerald-400"></i>
+            <span class="text-xs font-semibold text-white">Target Person Only Lock</span>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="toggle-target-person-only" class="sr-only peer">
+            <div class="w-9 h-5 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+          </label>
+        </div>
+        <p class="text-[11px] text-white/50 leading-relaxed">
+          When toggled ON, the AI tracking engine filters out passersby or background persons, tracking only the calibrated profile face geometry. If another face enters the frame, focus tracking ignores them.
+        </p>
+        <div id="target-person-status-banner" class="hidden text-[10px] font-mono text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
+          ● Calibrated Biometric Lock Active
+        </div>
+      </div>
+
+      <!-- Save Button -->
+      <button id="btn-save-profile" class="w-full py-2.5 rounded-xl bg-white text-black font-bold text-xs hover:bg-neutral-200 transition-all shadow-md">
+        Save Profile & Apply Biometrics
+      </button>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 6. Adaptive Comprehension & Focus Test Modal                              -->
+  <!-- ========================================================================= -->
+  <div id="modal-adaptive-test" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn select-none">
+    <div class="w-full max-w-lg rounded-3xl bg-neutral-950 border border-white/15 p-6 shadow-2xl space-y-5">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-white/10">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500/20 to-indigo-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+            <i data-lucide="brain-circuit" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white tracking-tight">Adaptive Focus & Knowledge Test</h3>
+            <p class="text-[11px] text-white/40 font-mono">Calibrated to current topic & student flow state</p>
+          </div>
+        </div>
+        <button id="btn-close-adaptive-test" class="p-1 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-colors">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Test Status / Reward Tag -->
+      <div class="flex items-center justify-between text-xs font-mono">
+        <span class="text-cyan-400 flex items-center space-x-1">
+          <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+          <span id="adaptive-test-level">Level 2: Data Structures & Hashing</span>
+        </span>
+        <span class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/30">
+          +50 Streak Points Reward
+        </span>
+      </div>
+
+      <!-- Question Card -->
+      <div class="p-4 rounded-2xl bg-neutral-900/70 border border-white/10 space-y-3 text-left">
+        <div class="text-xs text-white/50 font-mono uppercase tracking-wider">Concept Comprehension Check:</div>
+        <div id="adaptive-test-question" class="text-sm font-medium text-white leading-relaxed">
+          In a single-pass Hash Map approach for Two Sum, what is the average lookup time complexity to check whether the complement (<code class="text-cyan-300 font-mono">target - num</code>) exists in the table?
+        </div>
+
+        <!-- Options Container -->
+        <div id="adaptive-test-options" class="space-y-2 pt-2">
+          <!-- Populated dynamically by app.js -->
+        </div>
+
+        <!-- Explanation Banner (Revealed on Answer) -->
+        <div id="adaptive-test-explanation" class="hidden p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-xs font-sans text-emerald-200 leading-relaxed space-y-1">
+          <div class="font-bold flex items-center space-x-1 text-emerald-300 font-mono">
+            <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+            <span id="adaptive-explanation-title">Mastery Verified! +50 Points Awarded</span>
+          </div>
+          <div id="adaptive-explanation-text">
+            Hash tables use hash bucketing to provide O(1) expected constant-time key lookup, turning what would be an O(N²) brute-force search into an optimal O(N) single-pass algorithm.
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Footer -->
+      <div class="flex items-center justify-between pt-2">
+        <button id="btn-next-adaptive-question" class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-xs font-mono text-white/70 hover:text-white flex items-center space-x-1.5 transition-all">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+          <span>Next Adaptive Question</span>
+        </button>
+        <button id="btn-done-adaptive-test" class="px-5 py-2 rounded-xl bg-white text-black font-bold text-xs font-mono hover:bg-neutral-200 transition-all shadow-md">
+          Continue Deep Focus
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Emergency Sleep Intervention Modal -->
+  <div id="modal-emergency-sleep" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-xl p-4 animate-fadeIn select-none">
+    <div class="absolute inset-0 bg-red-950/25 animate-pulse pointer-events-none"></div>
+
+    <div class="relative w-full max-w-lg rounded-3xl bg-neutral-950 border-2 border-red-500/60 p-6 md:p-8 shadow-2xl shadow-red-950/80 space-y-6 text-center">
+      <div class="mx-auto w-20 h-20 rounded-full bg-red-500/20 border-2 border-red-500 flex items-center justify-center text-red-400 animate-bounce shadow-lg shadow-red-500/40">
+        <i data-lucide="bell-ring" class="w-10 h-10 animate-spin" style="animation-duration: 3s;"></i>
+      </div>
+
+      <div class="space-y-2">
+        <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-red-500/20 border border-red-500/40 text-red-300 text-xs font-mono font-bold tracking-widest uppercase">
+          <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
+          <span>Drowsiness / Sleep Detected</span>
+        </div>
+        <h2 class="text-2xl md:text-3xl font-black tracking-tight text-white">WAKE UP!</h2>
+        <p class="text-xs md:text-sm text-white/70 max-w-sm mx-auto leading-relaxed">
+          EAR dropped below threshold (eyes closed &gt; 3.0s). Loud wake-up alarm engaged!
+        </p>
+      </div>
+
+      <div class="bg-neutral-900/90 border border-white/10 rounded-2xl p-3.5 text-left space-y-2 shadow-inner">
+        <div class="flex items-center justify-between text-[11px] font-mono text-white/40 border-b border-white/5 pb-1.5">
+          <div class="flex items-center space-x-1.5">
+            <i data-lucide="smartphone" class="w-3.5 h-3.5 text-cyan-400"></i>
+            <span>Mobile Phone Push Notification Sent</span>
+          </div>
+          <span class="text-emerald-400">● Delivered Now</span>
+        </div>
+
+        <div class="flex items-start space-x-3 pt-1">
+          <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-red-500 flex items-center justify-center text-white flex-shrink-0">
+            <i data-lucide="flame" class="w-4 h-4 fill-white"></i>
+          </div>
+          <div class="space-y-0.5">
+            <div class="text-xs font-bold text-white flex items-center space-x-1">
+              <span>FocusMind Companion</span>
+              <span class="text-[10px] text-white/40 font-normal">Just now</span>
+            </div>
+            <p class="text-xs text-amber-300 font-medium">WAKE UP! Keep the focus streak alive! 🔥</p>
+            <p class="text-[11px] text-white/50">Teacher room has been notified. Tap to confirm you are awake.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between px-3 py-2 rounded-xl bg-red-950/30 border border-red-500/20 text-xs font-mono text-red-300">
+        <span class="flex items-center space-x-2">
+          <i data-lucide="alert-triangle" class="w-4 h-4 text-red-400"></i>
+          <span>Teacher Portal: Student Flagged</span>
+        </span>
+        <span class="text-red-400 font-bold">[Notification Sent]</span>
+      </div>
+
+      <button id="btn-dismiss-alarm" class="w-full py-3.5 px-6 rounded-2xl bg-white text-black font-bold text-sm tracking-wide hover:bg-neutral-200 transition-all active:scale-[0.98] shadow-xl shadow-white/10">
+        I'm Awake! Silence Alarm & Resume Focus
+      </button>
+    </div>
+  </div>
+
+  <video id="bg-webcam" playsinline autoplay muted class="hidden"></video>
+  <canvas id="bg-canvas" class="hidden" width="640" height="480"></canvas>
+
+  <script src="app.js"></script>
+</body>
+</html>
