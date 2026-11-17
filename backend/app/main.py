@@ -446,12 +446,14 @@ class RoomManager:
         self.create_default_room("FM-1001")
 
     def create_default_room(self, code: str = "FM-1001") -> RoomSession:
+        svg = generate_qr_svg(code)
         session = RoomSession(
             room_code=code,
             session_id=f"sess_{int(time.time())}_{code}",
             active_mode="TEACHER",
             current_topic="Two Sum & Hash Tables",
-            qr_code_svg=generate_qr_svg(code),
+            qr_code_svg=svg,
+            qr_svg=svg,
             connected_devices=[
                 RoomDevice(
                     device_id="dev_primary_main",
@@ -482,12 +484,14 @@ class RoomManager:
     def create_room(self, device_name: str, device_type: str, topic: str = "Two Sum & Hash Tables", mode: str = "TEACHER") -> RoomSession:
         num = random.randint(1000, 9999)
         code = f"FM-{num}"
+        svg = generate_qr_svg(code)
         session = RoomSession(
             room_code=code,
             session_id=f"sess_{int(time.time())}_{code}",
             active_mode=mode,
             current_topic=topic,
-            qr_code_svg=generate_qr_svg(code),
+            qr_code_svg=svg,
+            qr_svg=svg,
             connected_devices=[
                 RoomDevice(
                     device_id=f"dev_host_{int(time.time())}",

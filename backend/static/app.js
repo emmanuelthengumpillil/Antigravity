@@ -102,9 +102,9 @@ console.log(twoSum([2, 7, 11, 15], 9));
   if (editorEl) editorEl.value = pythonCode;
 
   // =========================================================================
-  // 1. Continuous Streak Gamification System
+  // 1. Continuous Streak Gamification System (Active Working Point Tracker)
   // =========================================================================
-  function updateStreakDisplays() {
+  function updateStreakDisplays(gainedPoints = 0) {
     const islandDays = document.getElementById('island-streak-days');
     const islandPts = document.getElementById('island-streak-points');
     const hudDays = document.getElementById('hud-streak-days');
@@ -122,7 +122,33 @@ console.log(twoSum([2, 7, 11, 15], 9));
     if (railPtsComp) railPtsComp.textContent = `${streakPoints}`;
     if (railDaysExp) railDaysExp.textContent = `${streakDays} Days Streak`;
     if (railPtsExp) railPtsExp.textContent = `${streakPoints} Pts (${streakMultiplier.toFixed(1)}x)`;
+
+    if (gainedPoints > 0 && islandPts) {
+      islandPts.classList.add('text-emerald-400', 'scale-110');
+      setTimeout(() => {
+        islandPts.classList.remove('text-emerald-400', 'scale-110');
+      }, 700);
+    }
   }
+
+  // Daily streak check based on active sessions
+  function checkAndUpdateStreakDays() {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const lastActiveDate = localStorage.getItem('focusmind_last_active_date');
+    if (!lastActiveDate) {
+      localStorage.setItem('focusmind_last_active_date', todayStr);
+    } else if (lastActiveDate !== todayStr) {
+      const lastDate = new Date(lastActiveDate);
+      const today = new Date(todayStr);
+      const diffDays = Math.round((today - lastDate) / (1000 * 60 * 60 * 24));
+      if (diffDays === 1) {
+        streakDays += 1;
+        localStorage.setItem('focusmind_streak_days', streakDays.toString());
+      }
+      localStorage.setItem('focusmind_last_active_date', todayStr);
+    }
+  }
+  checkAndUpdateStreakDays();
 
   function formatDurationMMSS(secs) {
     const m = Math.floor(secs / 60).toString().padStart(2, '0');
@@ -181,11 +207,42 @@ console.log(twoSum([2, 7, 11, 15], 9));
     }
   }
 
-  // 1-second interval tracking time spent in current state of mind
+  // 1-second interval tracking time spent in mental states AND active focus streak points
+  let focusContinuousSeconds = 0;
+  let pointsAccumulatorSec = 0;
+
   setInterval(() => {
     if (detectedState && stateTimes[detectedState] !== undefined) {
       stateTimes[detectedState]++;
-      // Persist every 5 seconds
+
+      // Continuous points accumulation during active focus
+      if (detectedState === 'FOCUSED' || detectedState === 'ENGAGED' || detectedState === 'PRESENT') {
+        focusContinuousSeconds++;
+        pointsAccumulatorSec++;
+
+        if (focusContinuousSeconds > 300) {
+          streakMultiplier = 1.5;
+        } else if (focusContinuousSeconds > 90) {
+          streakMultiplier = 1.2;
+        } else {
+          streakMultiplier = 1.0;
+        }
+
+        // Award points every 10 seconds of active focus
+        if (pointsAccumulatorSec >= 10) {
+          pointsAccumulatorSec = 0;
+          const gained = Math.round(5 * streakMultiplier);
+          streakPoints += gained;
+          localStorage.setItem('focusmind_streak_pts', streakPoints.toString());
+          updateStreakDisplays(gained);
+        }
+      } else if (detectedState === 'AWAY' || detectedState === 'SLEEPING') {
+        focusContinuousSeconds = 0;
+        streakMultiplier = 1.0;
+        pointsAccumulatorSec = 0;
+      }
+
+      // Persist state times every 5 seconds
       if (stateTimes[detectedState] % 5 === 0) {
         localStorage.setItem(`fm_time_${detectedState.toLowerCase()}`, stateTimes[detectedState].toString());
       }
@@ -193,6 +250,7 @@ console.log(twoSum([2, 7, 11, 15], 9));
     }
   }, 1000);
 
+  updateStreakDisplays();
   updateFlowStateAndMindTimes();
 
   // =========================================================================
@@ -552,6 +610,8 @@ console.log(twoSum([2, 7, 11, 15], 9));
     const aura = document.getElementById('orb-ambient-aura');
     const resonator = document.getElementById('orb-resonator');
     const cadence = document.getElementById('orb-cadence-label');
+    const adaptiveText = document.getElementById('orb-adaptive-text');
+    const flowHeader = document.getElementById('orb-flow-header');
 
     if (state === 'ENGAGED') {
       if (aura) aura.className = 'absolute w-72 h-72 rounded-full blur-[100px] transition-all duration-1000 pointer-events-none bg-emerald-500/20';
@@ -561,8 +621,13 @@ console.log(twoSum([2, 7, 11, 15], 9));
       }
       if (cadence) {
         cadence.textContent = 'HIGH FLOW CADENCE';
-        cadence.className = 'text-[9px] font-mono tracking-widest mt-1.5 text-emerald-300/70';
+        cadence.className = 'text-[9px] font-mono tracking-widest mt-0.5 text-emerald-300/70';
       }
+      if (adaptiveText) {
+        adaptiveText.textContent = 'FLOW IMMERSION';
+        adaptiveText.className = 'text-xs md:text-sm font-semibold tracking-wider text-emerald-300 drop-shadow text-center transition-all duration-300';
+      }
+      if (flowHeader) flowHeader.className = 'text-[9px] font-mono tracking-[0.25em] uppercase text-emerald-400/80 mb-0.5';
     } else if (state === 'DROWSY' || state === 'SLEEPING') {
       if (aura) aura.className = 'absolute w-72 h-72 rounded-full blur-[100px] transition-all duration-1000 pointer-events-none bg-amber-500/20';
       if (resonator) {
@@ -571,14 +636,35 @@ console.log(twoSum([2, 7, 11, 15], 9));
       }
       if (cadence) {
         cadence.textContent = 'RESTORATIVE BREATH';
-        cadence.className = 'text-[9px] font-mono tracking-widest mt-1.5 text-amber-300/70';
+        cadence.className = 'text-[9px] font-mono tracking-widest mt-0.5 text-amber-300/70';
       }
+      if (adaptiveText) {
+        adaptiveText.textContent = 'DEEP INHALE • RESET';
+        adaptiveText.className = 'text-xs md:text-sm font-semibold tracking-wider text-amber-300 drop-shadow text-center transition-all duration-300 animate-pulse';
+      }
+      if (flowHeader) flowHeader.className = 'text-[9px] font-mono tracking-[0.25em] uppercase text-amber-400/80 mb-0.5';
     } else if (state === 'AWAY') {
       if (aura) aura.className = 'absolute w-72 h-72 rounded-full blur-[100px] transition-all duration-1000 pointer-events-none bg-zinc-600/20';
       if (cadence) {
         cadence.textContent = 'PAUSED • STANDBY';
-        cadence.className = 'text-[9px] font-mono tracking-widest mt-1.5 text-zinc-400';
+        cadence.className = 'text-[9px] font-mono tracking-widest mt-0.5 text-zinc-400';
       }
+      if (adaptiveText) {
+        adaptiveText.textContent = 'RESTING STANDBY';
+        adaptiveText.className = 'text-xs md:text-sm font-semibold tracking-wider text-zinc-400 drop-shadow text-center transition-all duration-300';
+      }
+      if (flowHeader) flowHeader.className = 'text-[9px] font-mono tracking-[0.25em] uppercase text-zinc-400/80 mb-0.5';
+    } else if (state === 'PRESENT') {
+      if (aura) aura.className = 'absolute w-72 h-72 rounded-full blur-[100px] transition-all duration-1000 pointer-events-none bg-indigo-500/20';
+      if (cadence) {
+        cadence.textContent = 'STEADY BREATH';
+        cadence.className = 'text-[9px] font-mono tracking-widest mt-0.5 text-indigo-300/70';
+      }
+      if (adaptiveText) {
+        adaptiveText.textContent = 'MINDFUL CALM';
+        adaptiveText.className = 'text-xs md:text-sm font-semibold tracking-wider text-indigo-300 drop-shadow text-center transition-all duration-300';
+      }
+      if (flowHeader) flowHeader.className = 'text-[9px] font-mono tracking-[0.25em] uppercase text-indigo-400/80 mb-0.5';
     } else {
       if (aura) aura.className = 'absolute w-72 h-72 rounded-full blur-[100px] transition-all duration-1000 pointer-events-none bg-cyan-500/20';
       if (resonator) {
@@ -587,8 +673,13 @@ console.log(twoSum([2, 7, 11, 15], 9));
       }
       if (cadence) {
         cadence.textContent = 'CALM CADENCE';
-        cadence.className = 'text-[9px] font-mono tracking-widest mt-1.5 text-cyan-300/60';
+        cadence.className = 'text-[9px] font-mono tracking-widest mt-0.5 text-cyan-300/60';
       }
+      if (adaptiveText) {
+        adaptiveText.textContent = 'IN THE ZONE';
+        adaptiveText.className = 'text-xs md:text-sm font-semibold tracking-wider text-cyan-300 drop-shadow text-center transition-all duration-300';
+      }
+      if (flowHeader) flowHeader.className = 'text-[9px] font-mono tracking-[0.25em] uppercase text-cyan-400/80 mb-0.5';
     }
   }
 
@@ -793,6 +884,13 @@ console.log(twoSum([2, 7, 11, 15], 9));
         if (currentVal.includes('seen') && (currentVal.includes('target -') || currentVal.includes('target-'))) {
           outputText.innerHTML = `Output: [0, 1]\nCase 1: Passed ✅ (target=9, nums=[2,7,11,15])\nCase 2: Passed ✅ (target=6, nums=[3,2,4])\nRuntime: 54ms • Memory: 15.2MB`;
           codeFailCount = 0;
+          streakPoints += 25;
+          localStorage.setItem('focusmind_streak_pts', streakPoints.toString());
+          updateStreakDisplays(25);
+          showZoomToast('✓ All Tests Passed! +25 Streak Points');
+          if (window.confetti) {
+            window.confetti({ particleCount: 35, spread: 50, origin: { y: 0.7 } });
+          }
         } else {
           outputText.innerHTML = `Runtime Error: Test Case 2 failed. Expected [1, 2], got [].\nTip: Validate complement storage in map.`;
           codeFailCount++;
@@ -1706,6 +1804,161 @@ console.log(twoSum([2, 7, 11, 15], 9));
   refreshProfileUI();
 
   // =========================================================================
+  // 9c. Adaptive Comprehension & Knowledge Test Logic
+  // =========================================================================
+  const modalAdaptiveTest = document.getElementById('modal-adaptive-test');
+  const btnOpenAdaptiveTest = document.getElementById('btn-open-adaptive-test');
+  const btnCloseAdaptiveTest = document.getElementById('btn-close-adaptive-test');
+  const btnDoneAdaptiveTest = document.getElementById('btn-done-adaptive-test');
+  const btnNextAdaptiveQuestion = document.getElementById('btn-next-adaptive-question');
+  const adaptiveQuestionEl = document.getElementById('adaptive-test-question');
+  const adaptiveOptionsContainer = document.getElementById('adaptive-test-options');
+  const adaptiveExplanationEl = document.getElementById('adaptive-test-explanation');
+  const adaptiveExplanationTitle = document.getElementById('adaptive-explanation-title');
+  const adaptiveExplanationText = document.getElementById('adaptive-explanation-text');
+  const adaptiveTestLevel = document.getElementById('adaptive-test-level');
+
+  const adaptiveQuestions = [
+    {
+      level: 'Level 1: Hash Map Lookups',
+      q: 'In a single-pass Hash Map approach for Two Sum, what is the average time complexity to check whether the complement (<code class="text-cyan-300 font-mono">target - num</code>) exists in the table?',
+      options: [
+        'A) O(1) Constant Time on Average',
+        'B) O(N) Linear Scan per Element',
+        'C) O(N log N) Heap Lookup',
+        'D) O(N²) Quadratic Comparisons'
+      ],
+      correct: 0,
+      explanation: 'Hash tables use hash indexing to achieve O(1) expected constant-time key lookup, turning what would be an O(N²) brute-force search into an optimal O(N) single-pass algorithm.'
+    },
+    {
+      level: 'Level 2: Space Complexity Tradeoffs',
+      q: 'Why does the single-pass Hash Map approach require O(N) extra auxiliary memory space compared to the brute force two-pointer scan?',
+      options: [
+        'A) It allocates memory for recursive call stack frames',
+        'B) It stores up to N elements and their indices in the dictionary',
+        'C) It duplicates the array into a binary search tree',
+        'D) Python dictionaries require quadratic memory overhead'
+      ],
+      correct: 1,
+      explanation: 'In the worst case (e.g. matching pair is at the very end), the map stores up to N - 1 previously inspected numbers, consuming O(N) auxiliary space.'
+    },
+    {
+      level: 'Level 3: Edge Case Scenarios',
+      q: 'What happens in Two Sum if an element can pair with itself (e.g. nums=[3, 3], target=6) in a single-pass hash map where seen[num] is set after checking the complement?',
+      options: [
+        'A) An IndexError is thrown immediately',
+        'B) It correctly pairs the second 3 with the first 3 without self-pairing',
+        'C) It enters an infinite while-loop',
+        'D) It overwrites the target and returns [-1, -1]'
+      ],
+      correct: 1,
+      explanation: 'Because we check if the complement is already in the map BEFORE storing the current element, nums[1] (3) finds nums[0] (3) already in seen and correctly returns [0, 1] without accidentally using the same element twice.'
+    }
+  ];
+
+  let currentQuestionIndex = 0;
+  let hasAnsweredCurrentQuestion = false;
+
+  function renderAdaptiveQuestion() {
+    hasAnsweredCurrentQuestion = false;
+    const item = adaptiveQuestions[currentQuestionIndex];
+    if (!item) return;
+
+    if (adaptiveTestLevel) adaptiveTestLevel.textContent = item.level;
+    if (adaptiveQuestionEl) adaptiveQuestionEl.innerHTML = item.q;
+    if (adaptiveExplanationEl) adaptiveExplanationEl.classList.add('hidden');
+
+    if (adaptiveOptionsContainer) {
+      adaptiveOptionsContainer.innerHTML = '';
+      item.options.forEach((optText, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'w-full p-2.5 rounded-xl bg-black/60 hover:bg-white/10 border border-white/10 hover:border-cyan-500/40 text-xs text-white/90 text-left font-mono flex items-center justify-between transition-all';
+        btn.innerHTML = `
+          <span>${optText}</span>
+          <span class="option-check text-xs font-bold opacity-0"></span>
+        `;
+        btn.addEventListener('click', () => handleAdaptiveAnswer(idx, btn));
+        adaptiveOptionsContainer.appendChild(btn);
+      });
+    }
+  }
+
+  function handleAdaptiveAnswer(selectedIdx, btnElement) {
+    if (hasAnsweredCurrentQuestion) return;
+    hasAnsweredCurrentQuestion = true;
+
+    const item = adaptiveQuestions[currentQuestionIndex];
+    const isCorrect = selectedIdx === item.correct;
+
+    if (adaptiveOptionsContainer) {
+      const allButtons = adaptiveOptionsContainer.querySelectorAll('button');
+      allButtons.forEach((b, idx) => {
+        const checkSpan = b.querySelector('.option-check');
+        if (idx === item.correct) {
+          b.className = 'w-full p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/50 text-xs text-emerald-300 font-mono flex items-center justify-between transition-all';
+          if (checkSpan) {
+            checkSpan.textContent = '✓ Correct';
+            checkSpan.className = 'option-check text-xs text-emerald-400 font-bold opacity-100';
+          }
+        } else if (idx === selectedIdx && !isCorrect) {
+          b.className = 'w-full p-2.5 rounded-xl bg-red-950/40 border border-red-500/50 text-xs text-red-300 font-mono flex items-center justify-between transition-all';
+          if (checkSpan) {
+            checkSpan.textContent = '✗ Incorrect';
+            checkSpan.className = 'option-check text-xs text-red-400 font-bold opacity-100';
+          }
+        }
+      });
+    }
+
+    if (adaptiveExplanationEl && adaptiveExplanationTitle && adaptiveExplanationText) {
+      adaptiveExplanationEl.classList.remove('hidden');
+      if (isCorrect) {
+        adaptiveExplanationTitle.textContent = 'Mastery Verified! +50 Points Awarded 🎉';
+        adaptiveExplanationEl.className = 'p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-xs font-sans text-emerald-200 leading-relaxed space-y-1';
+        if (window.confetti) {
+          window.confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+        }
+        streakPoints += 50;
+        localStorage.setItem('focusmind_streak_pts', streakPoints.toString());
+        updateStreakDisplays(50);
+        showZoomToast('🎉 +50 Streak Points for Adaptive Mastery!');
+      } else {
+        adaptiveExplanationTitle.textContent = 'Socratic Review Hint';
+        adaptiveExplanationEl.className = 'p-3 rounded-xl bg-amber-950/40 border border-amber-500/30 text-xs font-sans text-amber-200 leading-relaxed space-y-1';
+      }
+      adaptiveExplanationText.textContent = item.explanation;
+    }
+  }
+
+  function openAdaptiveTestModal() {
+    if (!modalAdaptiveTest) return;
+    renderAdaptiveQuestion();
+    modalAdaptiveTest.classList.remove('hidden');
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  function closeAdaptiveTestModal() {
+    if (!modalAdaptiveTest) return;
+    modalAdaptiveTest.classList.add('hidden');
+  }
+
+  if (btnOpenAdaptiveTest) btnOpenAdaptiveTest.addEventListener('click', openAdaptiveTestModal);
+  if (btnCloseAdaptiveTest) btnCloseAdaptiveTest.addEventListener('click', closeAdaptiveTestModal);
+  if (btnDoneAdaptiveTest) btnDoneAdaptiveTest.addEventListener('click', closeAdaptiveTestModal);
+  if (modalAdaptiveTest) {
+    modalAdaptiveTest.addEventListener('click', (e) => {
+      if (e.target === modalAdaptiveTest) closeAdaptiveTestModal();
+    });
+  }
+  if (btnNextAdaptiveQuestion) {
+    btnNextAdaptiveQuestion.addEventListener('click', () => {
+      currentQuestionIndex = (currentQuestionIndex + 1) % adaptiveQuestions.length;
+      renderAdaptiveQuestion();
+    });
+  }
+
+  // =========================================================================
   // Multi-Device Synchronization & Pairing (QR & Room Sync)
   // =========================================================================
   let activeRoomCode = localStorage.getItem('focusmind_room_code') || 'FM-1001';
@@ -1723,6 +1976,30 @@ console.log(twoSum([2, 7, 11, 15], 9));
   const btnNewRoom = document.getElementById('btn-new-room');
   const syncDevicesContainer = document.getElementById('sync-devices-container');
   const syncDevicesCount = document.getElementById('sync-devices-count');
+
+  function showLoadingStanley() {
+    if (!syncQrContainer) return;
+    syncQrContainer.innerHTML = `
+      <div id="loading-stanley" class="flex flex-col items-center justify-center space-y-2 p-2 text-center animate-pulse">
+        <div class="relative w-12 h-12 flex items-center justify-center">
+          <svg viewBox="0 0 44 44" width="38" height="38" class="animate-bounce">
+            <line x1="22" y1="2" x2="22" y2="8" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" />
+            <circle cx="22" cy="2" r="2.5" fill="#06b6d4" class="animate-ping" />
+            <rect x="6" y="8" width="32" height="28" rx="9" fill="#0f0f11" stroke="#06b6d4" stroke-width="1.5" />
+            <rect x="9" y="11" width="26" height="22" rx="6" fill="#000000" />
+            <circle cx="16" cy="18" r="3.2" fill="#06b6d4" />
+            <circle cx="28" cy="18" r="3.2" fill="#06b6d4" />
+            <path d="M 16 26 Q 22 30 28 26" fill="transparent" stroke="#06b6d4" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+          <div class="absolute inset-0 rounded-full border border-cyan-400/30 animate-spin" style="animation-duration: 2.5s;"></div>
+        </div>
+        <div class="space-y-0.5">
+          <span class="text-[11px] font-mono text-cyan-300 font-bold block">Stanley is syncing...</span>
+          <span class="text-[9px] font-mono text-white/40 block">Generating QR Matrix</span>
+        </div>
+      </div>
+    `;
+  }
 
   function renderRoomDevices(devices = []) {
     if (!syncDevicesContainer) return;
@@ -1766,13 +2043,35 @@ console.log(twoSum([2, 7, 11, 15], 9));
     localStorage.setItem('focusmind_room_code', code);
     if (syncRoomCodeDisplay) syncRoomCodeDisplay.textContent = code;
 
+    // Show Loading Stanley mascot animation
+    showLoadingStanley();
+
     try {
       const res = await fetch(`/api/rooms/${code}`);
       if (res.ok) {
         const data = await res.json();
-        if (syncQrContainer && data.qr_svg) {
-          syncQrContainer.innerHTML = data.qr_svg;
+        const qrSvg = data.qr_code_svg || data.qr_svg;
+
+        // Render real scannable QR if QRCode.js is loaded, else render backend SVG
+        if (typeof QRCode !== 'undefined' && syncQrContainer) {
+          syncQrContainer.innerHTML = '';
+          const pairingUrl = `${window.location.origin}/?room=${code}`;
+          try {
+            new QRCode(syncQrContainer, {
+              text: pairingUrl,
+              width: 140,
+              height: 140,
+              colorDark: "#000000",
+              colorLight: "#ffffff",
+              correctLevel: QRCode.CorrectLevel.M
+            });
+          } catch (qrErr) {
+            if (qrSvg) syncQrContainer.innerHTML = qrSvg;
+          }
+        } else if (syncQrContainer && qrSvg) {
+          syncQrContainer.innerHTML = qrSvg;
         }
+
         if (data.tutor_mode && data.tutor_mode !== tutorCurrentMode) {
           updateTutorModeUI(data.tutor_mode, false);
         }
@@ -1921,6 +2220,7 @@ console.log(twoSum([2, 7, 11, 15], 9));
   // Generate New Room Button
   if (btnNewRoom) {
     btnNewRoom.addEventListener('click', async () => {
+      showLoadingStanley();
       try {
         const res = await fetch('/api/rooms/create', {
           method: 'POST',

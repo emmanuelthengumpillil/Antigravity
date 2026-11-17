@@ -254,6 +254,7 @@ class RoomSession(BaseModel):
     chat_history: List[RoomChatMessage] = Field(default_factory=list)
     shared_code: str = ""
     qr_code_svg: Optional[str] = None
+    qr_svg: Optional[str] = None
 
 
 class CreateRoomRequest(BaseModel):

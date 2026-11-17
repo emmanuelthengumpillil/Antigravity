@@ -41,7 +41,7 @@ export default function MultiDeviceSyncModal({
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (data) {
-          if (data.qr_code_svg) setQrSvg(data.qr_code_svg);
+          if (data.qr_code_svg || data.qr_svg) setQrSvg(data.qr_code_svg || data.qr_svg);
           if (data.connected_devices) setDevices(data.connected_devices);
         }
       })
@@ -130,9 +130,23 @@ export default function MultiDeviceSyncModal({
                 className="w-36 h-36 flex items-center justify-center rounded-xl overflow-hidden shadow-inner"
               />
             ) : (
-              <div className="w-36 h-36 rounded-xl bg-white/5 border border-white/10 flex flex-col items-center justify-center text-white/30 space-y-1">
-                <QrCode className="w-8 h-8" />
-                <span className="text-[10px] font-mono">Scan on mobile/tablet</span>
+              <div className="w-36 h-36 rounded-xl bg-neutral-900/90 border border-cyan-500/20 flex flex-col items-center justify-center text-center p-2 space-y-1.5 animate-pulse">
+                <div className="relative w-10 h-10 flex items-center justify-center">
+                  <svg viewBox="0 0 44 44" width="34" height="34" className="animate-bounce">
+                    <line x1="22" y1="2" x2="22" y2="8" stroke="#06b6d4" strokeWidth="2" strokeLinecap="round" />
+                    <circle cx="22" cy="2" r="2.5" fill="#06b6d4" className="animate-ping" />
+                    <rect x="6" y="8" width="32" height="28" rx="9" fill="#0f0f11" stroke="#06b6d4" strokeWidth="1.5" />
+                    <rect x="9" y="11" width="26" height="22" rx="6" fill="#000000" />
+                    <circle cx="16" cy="18" r="3.2" fill="#06b6d4" />
+                    <circle cx="28" cy="18" r="3.2" fill="#06b6d4" />
+                    <path d="M 16 26 Q 22 30 28 26" fill="transparent" stroke="#06b6d4" strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
+                  <div className="absolute inset-0 rounded-full border border-cyan-400/30 animate-spin" style={{ animationDuration: '2.5s' }}></div>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-mono text-cyan-300 font-bold block">Stanley syncing...</span>
+                  <span className="text-[8px] font-mono text-white/40 block">Generating QR</span>
+                </div>
               </div>
             )}
             <span className="text-[10px] font-mono text-white/40">Point secondary camera to pair</span>

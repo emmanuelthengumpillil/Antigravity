@@ -6,6 +6,7 @@ import CodingWorkspace from './CodingWorkspace';
 import EmergencySleepModal from './EmergencySleepModal';
 import ZoomClassroomModal from './ZoomClassroomModal';
 import MultiDeviceSyncModal from './MultiDeviceSyncModal';
+import AdaptiveTestModal from './AdaptiveTestModal';
 import { useEmotionEngine } from '../hooks/useEmotionEngine';
 import { usePomodoroMachine } from '../hooks/usePomodoroMachine';
 
@@ -13,6 +14,7 @@ export default function FocusPlatform() {
   const [isEmergencyAlarmOpen, setIsEmergencyAlarmOpen] = useState(false);
   const [isZoomModalOpen, setIsZoomModalOpen] = useState(false);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [isAdaptiveTestOpen, setIsAdaptiveTestOpen] = useState(false);
   const [currentRoomCode, setCurrentRoomCode] = useState('FM-1001');
 
   // Background pomodoro rhythm & gamification
@@ -105,6 +107,7 @@ export default function FocusPlatform() {
           <DeepFocusOrb
             emotion={emotion.detectedState === 'SLEEPING' ? 'ANXIOUS' : (emotion.detectedState as any)}
             progressPercent={pomodoro.progressPercent}
+            onOpenAdaptiveTest={() => setIsAdaptiveTestOpen(true)}
           />
         </main>
 
@@ -133,6 +136,13 @@ export default function FocusPlatform() {
         onClose={() => setIsSyncModalOpen(false)}
         roomCode={currentRoomCode}
         onRoomChange={(code) => setCurrentRoomCode(code)}
+      />
+
+      {/* Adaptive Knowledge & Comprehension Test Modal */}
+      <AdaptiveTestModal
+        isOpen={isAdaptiveTestOpen}
+        onClose={() => setIsAdaptiveTestOpen(false)}
+        onAwardPoints={emotion.awardPoints}
       />
 
       {/* 1-Minute Continuous Drowsiness Alert Banner */}

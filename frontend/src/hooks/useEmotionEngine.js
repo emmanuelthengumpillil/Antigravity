@@ -44,7 +44,7 @@ export function useEmotionEngine() {
 
       setCameraStatus('streaming');
       setDetectedState('FOCUSED');
-    } catch (err: any) {
+    } catch (err) {
       console.warn('Camera permission issue:', err);
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
         setCameraStatus('denied');
@@ -64,21 +64,63 @@ export function useEmotionEngine() {
     };
   }, [initCamera]);
 
-  // Continuous Streak Gamification System
-  // +10 pts awarded every 30s of maintained positive state (FOCUSED / ENGAGED / PRESENT)
+  // Check and update daily streak
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (detectedState === 'FOCUSED' || detectedState === 'ENGAGED' || detectedState === 'PRESENT') {
-        setPoints(prev => {
-          const next = prev + 10;
-          localStorage.setItem('focusmind_streak_pts', next.toString());
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const lastActiveDate = localStorage.getItem('focusmind_last_active_date');
+    if (!lastActiveDate) {
+      localStorage.setItem('focusmind_last_active_date', todayStr);
+    } else if (lastActiveDate !== todayStr) {
+      const lastDate = new Date(lastActiveDate);
+      const today = new Date(todayStr);
+      const diffDays = Math.round((today - lastDate) / (1000 * 60 * 60 * 24));
+      if (diffDays === 1) {
+        setStreakDays(prev => {
+          const next = prev + 1;
+          localStorage.setItem('focusmind_streak_days', next.toString());
           return next;
         });
       }
-    }, 30000); // 30 seconds
+      localStorage.setItem('focusmind_last_active_date', todayStr);
+    }
+  }, []);
+
+  // Continuous Streak Gamification: +5 pts every 10s of active focus scaled by multiplier
+  useEffect(() => {
+    let focusSeconds = 0;
+    const interval = setInterval(() => {
+      if (detectedState === 'FOCUSED' || detectedState === 'ENGAGED' || detectedState === 'PRESENT') {
+        focusSeconds += 10;
+        let currentMultiplier = 1.0;
+        if (focusSeconds > 300) {
+          currentMultiplier = 1.5;
+        } else if (focusSeconds > 90) {
+          currentMultiplier = 1.2;
+        }
+        setStreakMultiplier(currentMultiplier);
+
+        const gained = Math.round(5 * currentMultiplier);
+        setPoints(prev => {
+          const next = prev + gained;
+          localStorage.setItem('focusmind_streak_pts', next.toString());
+          return next;
+        });
+      } else if (detectedState === 'AWAY' || detectedState === 'SLEEPING') {
+        focusSeconds = 0;
+        setStreakMultiplier(1.0);
+      }
+    }, 10000); // every 10 seconds
 
     return () => clearInterval(interval);
   }, [detectedState]);
+
+  const awardPoints = useCallback((pts) => {
+    setPoints(prev => {
+      const next = prev + pts;
+      localStorage.setItem('focusmind_streak_pts', next.toString());
+      return next;
+    });
+  }, []);
 
   // Automated Facial State Inference simulation from video stream
   useEffect(() => {
@@ -142,6 +184,7 @@ export function useEmotionEngine() {
     streakDays,
     streakMultiplier,
     videoRef,
-    initCamera
+    initCamera,
+    awardPoints
   };
 }

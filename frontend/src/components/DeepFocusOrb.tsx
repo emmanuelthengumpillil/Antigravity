@@ -1,11 +1,19 @@
 import React from 'react';
+import { BrainCircuit } from 'lucide-react';
 
 interface DeepFocusOrbProps {
-  emotion?: 'FOCUSED' | 'HAPPY' | 'EXCITED' | 'ANXIOUS' | 'SAD';
+  emotion?: 'FOCUSED' | 'HAPPY' | 'EXCITED' | 'ANXIOUS' | 'SAD' | 'AWAY' | 'DROWSY' | 'SLEEPING' | string;
   progressPercent?: number; // 0 to 100 hairline ambient fill
+  adaptiveStateText?: string;
+  onOpenAdaptiveTest?: () => void;
 }
 
-export default function DeepFocusOrb({ emotion = 'FOCUSED', progressPercent = 35 }: DeepFocusOrbProps) {
+export default function DeepFocusOrb({
+  emotion = 'FOCUSED',
+  progressPercent = 35,
+  adaptiveStateText,
+  onOpenAdaptiveTest
+}: DeepFocusOrbProps) {
   // Emotion-reactive aura gradients
   const auraStyles = emotion === 'HAPPY' || emotion === 'EXCITED'
     ? {
@@ -89,17 +97,44 @@ export default function DeepFocusOrb({ emotion = 'FOCUSED', progressPercent = 35
           className="absolute w-48 h-48 md:w-56 md:h-56 rounded-full bg-[#0a0a0a]/90 border border-white/10 flex items-center justify-center shadow-inner"
         >
           {/* Concentric Orb 3: Core Nucleus */}
-          <div className="w-32 h-32 md:w-36 md:h-36 rounded-full bg-black flex flex-col items-center justify-center p-3 text-center border border-white/5 shadow-2xl">
+          <div className="w-32 h-32 md:w-36 md:h-36 rounded-full bg-black flex flex-col items-center justify-center p-2 text-center border border-white/5 shadow-2xl relative">
             {/* Center Typography: ZERO NUMERIC TIMERS */}
-            <span className="text-[10px] font-mono tracking-[0.3em] uppercase text-white/40 mb-1">
+            <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-cyan-400/80 mb-0.5">
               FLOW STATE
             </span>
-            <span className="text-sm md:text-base font-semibold tracking-[0.25em] text-white/90 drop-shadow">
-              DEEP FOCUS
+            
+            {/* Dynamic Adaptive Text in the centre (reflects real-time state of mind) */}
+            <span className="text-xs md:text-sm font-semibold tracking-wider text-white/95 drop-shadow text-center transition-all duration-300">
+              {adaptiveStateText || (
+                emotion === 'HAPPY' || emotion === 'EXCITED' || emotion === 'ENGAGED'
+                  ? 'FLOW IMMERSION'
+                  : emotion === 'ANXIOUS'
+                  ? 'DEEP RESET'
+                  : emotion === 'SAD'
+                  ? 'MINDFUL CALM'
+                  : emotion === 'AWAY'
+                  ? 'RESTING STANDBY'
+                  : emotion === 'DROWSY' || emotion === 'SLEEPING'
+                  ? 'POSTURE WAKEUP'
+                  : 'IN THE ZONE'
+              )}
             </span>
-            <span className={`text-[9px] font-mono tracking-widest mt-1.5 ${auraStyles.textColor}`}>
+
+            <span className={`text-[9px] font-mono tracking-widest mt-0.5 ${auraStyles.textColor}`}>
               CALM CADENCE
             </span>
+
+            {/* Adaptive Test Interactive Button in the centre of the speaker */}
+            {onOpenAdaptiveTest && (
+              <button
+                onClick={onOpenAdaptiveTest}
+                className="mt-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-[10px] font-mono font-semibold text-cyan-300 flex items-center space-x-1 transition-all active:scale-95 shadow-sm hover:border-cyan-400 group cursor-pointer"
+                title="Take Adaptive Focus & Comprehension Test"
+              >
+                <BrainCircuit className="w-3 h-3 text-cyan-400 group-hover:rotate-12 transition-transform" />
+                <span>Adaptive Test</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
