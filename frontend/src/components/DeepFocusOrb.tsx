@@ -1,0 +1,137 @@
+import React from 'react';
+import { BrainCircuit } from 'lucide-react';
+
+interface DeepFocusOrbProps {
+  emotion?: 'FOCUSED' | 'HAPPY' | 'EXCITED' | 'ANXIOUS' | 'SAD' | 'AWAY' | 'DROWSY' | 'SLEEPING' | string;
+  progressPercent?: number; // 0 to 100 hairline ambient fill
+  adaptiveStateText?: string;
+  onOpenAdaptiveTest?: () => void;
+}
+
+export default function DeepFocusOrb({
+  emotion = 'FOCUSED',
+  progressPercent = 35,
+  adaptiveStateText,
+  onOpenAdaptiveTest
+}: DeepFocusOrbProps) {
+  // Emotion-reactive aura gradients
+  const auraStyles = emotion === 'HAPPY' || emotion === 'EXCITED'
+    ? {
+        primary: 'from-emerald-500/20 via-teal-500/15 to-transparent',
+        glow: 'rgba(16, 185, 129, 0.25)',
+        ringColor: 'stroke-emerald-400/40',
+        textColor: 'text-emerald-300/60'
+      }
+    : emotion === 'ANXIOUS'
+      ? {
+          primary: 'from-amber-500/20 via-orange-500/15 to-transparent',
+          glow: 'rgba(245, 158, 11, 0.25)',
+          ringColor: 'stroke-amber-400/40',
+          textColor: 'text-amber-300/60'
+        }
+      : emotion === 'SAD'
+        ? {
+            primary: 'from-blue-500/20 via-indigo-500/15 to-transparent',
+            glow: 'rgba(59, 130, 246, 0.25)',
+            ringColor: 'stroke-blue-400/40',
+            textColor: 'text-blue-300/60'
+          }
+        : {
+            // Calm FOCUSED flow (Cyan / Soft Indigo)
+            primary: 'from-cyan-500/20 via-indigo-600/15 to-transparent',
+            glow: 'rgba(6, 182, 212, 0.22)',
+            ringColor: 'stroke-cyan-400/40',
+            textColor: 'text-cyan-300/60'
+          };
+
+  // Hairline perimeter calculation (radius = 160)
+  const radius = 160;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (progressPercent / 100) * circumference;
+
+  return (
+    <div className="relative flex flex-col items-center justify-center w-full h-full min-h-[420px] select-none">
+      {/* Background Soft Aura Shift */}
+      <div 
+        className="absolute w-72 h-72 rounded-full blur-[90px] transition-all duration-1000 pointer-events-none"
+        style={{ backgroundColor: auraStyles.glow }}
+      />
+
+      {/* Breathing Siri/Apple Health Concentric Orb */}
+      <div className="relative flex items-center justify-center">
+        {/* Hairline Perimeter Ring (Imperceptible, ambient session progress) */}
+        <svg className="w-80 h-80 md:w-96 md:h-96 transform -rotate-90">
+          <circle
+            cx="50%"
+            cy="50%"
+            r={radius}
+            stroke="currentColor"
+            strokeWidth="1.5"
+            fill="transparent"
+            className="text-white/5"
+          />
+          <circle
+            cx="50%"
+            cy="50%"
+            r={radius}
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            strokeLinecap="round"
+            fill="transparent"
+            className={`${auraStyles.ringColor} transition-all duration-1000 ease-linear`}
+          />
+        </svg>
+
+        {/* Concentric Orb 1: Outer Resonator */}
+        <div 
+          className={`absolute w-64 h-64 md:w-72 md:h-72 rounded-full bg-gradient-to-tr ${auraStyles.primary} border border-white/5 backdrop-blur-2xl animate-breathe`}
+          style={{
+            boxShadow: `0 0 60px ${auraStyles.glow}, inset 0 0 40px rgba(255,255,255,0.03)`
+          }}
+        />
+
+        {/* Concentric Orb 2: Mid Harmonic Layer */}
+        <div 
+          className="absolute w-48 h-48 md:w-56 md:h-56 rounded-full bg-[#0a0a0a]/90 border border-white/10 flex items-center justify-center shadow-inner"
+        >
+          {/* Concentric Orb 3: Core Nucleus */}
+          <div className="w-32 h-32 md:w-36 md:h-36 rounded-full bg-black flex flex-col items-center justify-center p-2 text-center border border-white/5 shadow-2xl relative">
+            {/* Center Typography: ZERO NUMERIC TIMERS */}
+            <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-cyan-400/80 mb-0.5">
+              FLOW STATE
+            </span>
+            
+            {/* Center Text: FOCUS MIND */}
+            <span className="text-sm md:text-base font-bold tracking-[0.25em] text-white/95 drop-shadow text-center transition-all duration-300">
+              FOCUS MIND
+            </span>
+
+            <span className={`text-[9px] font-mono tracking-widest mt-0.5 ${auraStyles.textColor}`}>
+              CALM CADENCE
+            </span>
+
+            {/* Adaptive Test Interactive Button in the centre of the speaker */}
+            {onOpenAdaptiveTest && (
+              <button
+                onClick={onOpenAdaptiveTest}
+                className="mt-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-[10px] font-mono font-semibold text-cyan-300 flex items-center space-x-1 transition-all active:scale-95 shadow-sm hover:border-cyan-400 group cursor-pointer"
+                title="Take Adaptive Focus & Comprehension Test"
+              >
+                <BrainCircuit className="w-3 h-3 text-cyan-400 group-hover:rotate-12 transition-transform" />
+                <span>Adaptive Test</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Ambient Breathing Cadence Subtitle */}
+      <div className="mt-8 flex items-center space-x-2 text-white/30 text-xs font-mono tracking-widest uppercase">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+        <span>4-Second Rhythmic Cycle</span>
+      </div>
+    </div>
+  );
+}

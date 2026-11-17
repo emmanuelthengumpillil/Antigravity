@@ -2,6 +2,7 @@ from enum import Enum
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 import time
+import uuid
 
 
 class CognitiveStateEnum(str, Enum):
@@ -125,3 +126,169 @@ class LessonModule(BaseModel):
     test_cases: List[Dict[str, Any]]
     clarifying_hints: List[str]
     step_by_step_breakdown: List[str]
+
+
+class SleepAlertRequest(BaseModel):
+    student_id: str = "learner_you"
+    student_name: str = "You"
+    ear_value: float = Field(0.14, description="Measured Eye Aspect Ratio below threshold")
+    head_pitch_slump: float = Field(-22.0, description="Downward head tilt")
+    consecutive_drowsy_frames: int = Field(24, description="Sustained frames eyes closed")
+    phone_number: Optional[str] = "+1 (555) 019-2834"
+
+
+class SleepAlertResponse(BaseModel):
+    status: str = "EMERGENCY_ALARM_DISPATCHED"
+    alarm_audio_frequency_hz: int = 1760
+    phone_notification_sent: bool = True
+    notification_title: str = "WAKE UP! Keep the focus streak alive! 🔥"
+    notification_body: str = "FocusMind detected sustained eye closure. Resume focus or take an early break!"
+    teacher_dashboard_flagged: bool = True
+    flagged_student_id: str
+    timestamp: float = Field(default_factory=lambda: time.time())
+
+
+class DrowsyAlertRequest(BaseModel):
+    student_id: str = "learner_you"
+    student_name: str = "You"
+    drowsy_duration_seconds: int = Field(60, description="Seconds student has been continuously drowsy")
+    ear_value: float = Field(0.20, description="Average eye aspect ratio during drowsy interval")
+    head_pitch_slump: float = Field(-15.0, description="Head pitch angle indicating slouching/drooping")
+    notification_channel: str = Field("BROWSER_AND_TEACHER", description="Dispatch channel")
+
+
+class DrowsyAlertResponse(BaseModel):
+    status: str = "DROWSY_NOTIFICATION_SENT"
+    notification_sent: bool = True
+    drowsy_duration_seconds: int = 60
+    notification_title: str = "Focus Alert: 1 Minute Drowsiness Detected"
+    notification_body: str = "You've been drowsy for 60 seconds. Take a deep breath, sit upright, or take a quick sip of water!"
+    teacher_dashboard_flagged: bool = True
+    flagged_student_id: str
+    timestamp: float = Field(default_factory=lambda: time.time())
+
+
+class TeacherStudentStatus(BaseModel):
+    student_id: str
+    name: str
+    status: str  # "Focusing", "On Break", "Idle", "SLEEPING", "DROWSY (1 min)"
+    emotion: str  # "FOCUSED", "HAPPY", "EXCITED", "ANXIOUS", "SAD", "SLEEPING", "DROWSY"
+    ear_value: float
+    is_sleeping_flagged: bool = False
+    is_drowsy_flagged: bool = False
+    drowsy_duration_seconds: int = 0
+    last_nudge_received: Optional[str] = None
+
+
+class TeacherNudgeRequest(BaseModel):
+    student_id: str
+    nudge_type: str = "ENCOURAGEMENT"  # "WAKE_UP", "ENCOURAGEMENT", "BREATHER"
+    custom_message: Optional[str] = None
+
+
+class ZoomDevice(BaseModel):
+    device_id: str
+    name: str
+    device_type: str  # "Primary Laptop", "Classroom Display", "Teacher Tablet", "Student Laptop"
+    role: str  # "Host", "Co-Host", "Participant"
+    email: Optional[str] = None
+    is_in_waiting_room: bool = False
+    connected_at: float = Field(default_factory=lambda: time.time())
+
+
+class ZoomSettings(BaseModel):
+    co_host_enabled: bool = True
+    alternative_host_enabled: bool = True
+    alternative_hosts: List[str] = Field(default_factory=lambda: ["teacher.lead@school.edu", "prof.math@school.edu"])
+    waiting_room_enabled: bool = True
+    allow_alt_hosts_polls_breakout: bool = True
+    screen_share_rule: str = "Host and Co-hosts only"  # "Host and Co-hosts only" | "All Participants"
+    meeting_verified: bool = True
+    security_shield_active: bool = True
+    connected_devices: List[ZoomDevice] = Field(default_factory=list)
+
+
+class UpdateZoomSettingsRequest(BaseModel):
+    co_host_enabled: Optional[bool] = None
+    alternative_host_enabled: Optional[bool] = None
+    alternative_hosts: Optional[List[str]] = None
+    waiting_room_enabled: Optional[bool] = None
+    allow_alt_hosts_polls_breakout: Optional[bool] = None
+    screen_share_rule: Optional[str] = None
+
+
+class PromoteDeviceRequest(BaseModel):
+    device_id: str
+    new_role: str  # "Host", "Co-Host", "Participant"
+    admit_from_waiting_room: bool = False
+
+
+# Cross-Device Sync & Dual-Mode AI Tutoring Models
+class RoomDevice(BaseModel):
+    device_id: str
+    device_name: str
+    device_type: str = "Desktop"  # "Desktop", "Tablet", "Mobile", "Display"
+    joined_at: float = Field(default_factory=lambda: time.time())
+    is_host: bool = False
+
+
+class RoomChatMessage(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4())[:8])
+    sender: str = "user"  # "user", "ai", "system"
+    author_name: str = "You"
+    mode: str = "TEACHER"  # "TEACHER" | "STUDENT"
+    text: str
+    hint: bool = False
+    timestamp: float = Field(default_factory=lambda: time.time())
+    device_id: Optional[str] = None
+
+
+class RoomSession(BaseModel):
+    room_code: str  # e.g. "FM-8421"
+    session_id: str
+    created_at: float = Field(default_factory=lambda: time.time())
+    active_module_id: str = "mod_two_sum"
+    active_mode: str = "TEACHER"  # "TEACHER" (Expert Educator) | "STUDENT" (Feynman Technique)
+    current_topic: str = "Two Sum & Hash Tables"
+    connected_devices: List[RoomDevice] = Field(default_factory=list)
+    chat_history: List[RoomChatMessage] = Field(default_factory=list)
+    shared_code: str = ""
+    qr_code_svg: Optional[str] = None
+    qr_svg: Optional[str] = None
+
+
+class CreateRoomRequest(BaseModel):
+    device_name: str = "Primary Desktop"
+    device_type: str = "Desktop"
+    initial_topic: Optional[str] = "Two Sum & Hash Tables"
+    active_mode: Optional[str] = "TEACHER"
+
+
+class JoinRoomRequest(BaseModel):
+    room_code: str
+    device_name: str = "Secondary Device"
+    device_type: str = "Tablet"  # "Tablet", "Mobile", "Laptop"
+
+
+class SendRoomMessageRequest(BaseModel):
+    device_id: Optional[str] = None
+    author_name: str = "You"
+    text: Optional[str] = None
+    message: Optional[str] = None
+    user_code: Optional[str] = None
+
+    @property
+    def query_text(self) -> str:
+        return (self.text or self.message or "").strip()
+
+
+class ToggleRoomModeRequest(BaseModel):
+    new_mode: str  # "TEACHER" | "STUDENT"
+    device_id: Optional[str] = None
+
+
+class UpdateRoomCodeRequest(BaseModel):
+    code_content: str
+    device_id: Optional[str] = None
+
+

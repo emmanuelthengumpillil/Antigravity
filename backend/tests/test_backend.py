@@ -152,3 +152,220 @@ def test_debugger_non_destructive_healing():
     # Crucial spec requirement: student content MUST be preserved without mutation
     assert heal_res.student_content_preserved is True
     assert heal_res.preserved_content_hash is not None
+
+
+def test_sleep_emergency_intervention():
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    client = TestClient(app)
+    response = client.post(
+        "/api/interventions/sleep-alert",
+        json={
+            "student_id": "learner_you",
+            "student_name": "You",
+            "ear_value": 0.13,
+            "head_pitch_slump": -25.0,
+            "consecutive_drowsy_frames": 28
+        }
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "EMERGENCY_ALARM_DISPATCHED"
+    assert data["phone_notification_sent"] is True
+    assert "WAKE UP" in data["notification_title"]
+    assert data["teacher_dashboard_flagged"] is True
+
+    # Check that teacher live status has the student flagged
+    teacher_res = client.get("/api/teacher/students")
+    assert teacher_res.status_code == 200
+    students = teacher_res.json()["students"]
+    you = next(s for s in students if s["name"] == "You")
+    assert you["status"] == "SLEEPING"
+    assert you["is_sleeping_flagged"] is True
+
+
+def test_zoom_classroom_settings_and_device_promotion():
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    client = TestClient(app)
+
+    # 1. Fetch current settings
+    res = client.get("/api/zoom/settings")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["co_host_enabled"] is True
+    assert data["alternative_host_enabled"] is True
+    assert "teacher.lead@school.edu" in data["alternative_hosts"]
+    assert len(data["connected_devices"]) >= 3
+
+    # 2. Update settings: Add alternative host email & enforce security rules
+    update_res = client.post(
+        "/api/zoom/settings",
+        json={
+            "co_host_enabled": True,
+            "alternative_host_enabled": True,
+            "alternative_hosts": ["teacher.lead@school.edu", "prof.math@school.edu", "substitute.teacher@school.edu"],
+            "waiting_room_enabled": True,
+            "allow_alt_hosts_polls_breakout": True,
+            "screen_share_rule": "Host and Co-hosts only"
+        }
+    )
+    assert update_res.status_code == 200
+    updated = update_res.json()
+    assert "substitute.teacher@school.edu" in updated["alternative_hosts"]
+    assert updated["waiting_room_enabled"] is True
+    assert updated["screen_share_rule"] == "Host and Co-hosts only"
+    assert updated["security_shield_active"] is True
+    assert updated["meeting_verified"] is True
+
+    # 3. Promote an unassigned classroom device to Co-Host
+    promote_res = client.post(
+        "/api/zoom/devices/role",
+        json={
+            "device_id": "dev_student_1",
+            "new_role": "Co-Host",
+            "admit_from_waiting_room": True
+        }
+    )
+    assert promote_res.status_code == 200
+    p_data = promote_res.json()
+    assert p_data["status"] == "device_role_updated"
+    assert p_data["device"]["role"] == "Co-Host"
+    assert p_data["device"]["is_in_waiting_room"] is False
+
+    # 4. Verify 404 on nonexistent device
+    bad_res = client.post(
+        "/api/zoom/devices/role",
+        json={
+            "device_id": "dev_unknown_999",
+            "new_role": "Co-Host"
+        }
+    )
+    assert bad_res.status_code == 404
+
+
+def test_prolonged_drowsiness_1min_alert():
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    client = TestClient(app)
+
+    # Trigger 1-minute drowsiness alert
+    alert_res = client.post(
+        "/api/interventions/drowsy-alert",
+        json={
+            "student_id": "learner_you",
+            "student_name": "You",
+            "drowsy_duration_seconds": 60,
+            "ear_value": 0.19,
+            "head_pitch_slump": -18.5,
+            "notification_channel": "BROWSER_AND_TEACHER"
+        }
+    )
+    assert alert_res.status_code == 200
+    data = alert_res.json()
+    assert data["status"] == "DROWSY_NOTIFICATION_SENT"
+    assert data["notification_sent"] is True
+    assert data["drowsy_duration_seconds"] == 60
+    assert "1 Minute Drowsiness" in data["notification_title"]
+    assert data["teacher_dashboard_flagged"] is True
+
+    # Check student in teacher roster is flagged as drowsy
+    teacher_res = client.get("/api/teacher/students")
+    assert teacher_res.status_code == 200
+    students = teacher_res.json()["students"]
+    you = next(s for s in students if s["name"] == "You")
+    assert you["is_drowsy_flagged"] is True
+    assert you["drowsy_duration_seconds"] == 60
+    assert "DROWSY" in you["status"]
+
+
+def test_multi_device_room_sync_and_dual_mode_ai():
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    client = TestClient(app)
+
+    # 1. Create a new collaborative room
+    create_res = client.post(
+        "/api/rooms/create",
+        json={
+            "device_name": "Primary MacBook",
+            "device_type": "Desktop",
+            "initial_topic": "Binary Search Trees",
+            "active_mode": "TEACHER"
+        }
+    )
+    assert create_res.status_code == 200
+    room_data = create_res.json()
+    room_code = room_data["room_code"]
+    assert room_code.startswith("FM-")
+    assert "<svg" in room_data["qr_code_svg"]
+    assert room_data["active_mode"] == "TEACHER"
+    assert len(room_data["connected_devices"]) == 1
+
+    # 2. Secondary device joins room (e.g. iPad Tablet)
+    join_res = client.post(
+        "/api/rooms/join",
+        json={
+            "room_code": room_code,
+            "device_name": "Classroom iPad Pro",
+            "device_type": "Tablet"
+        }
+    )
+    assert join_res.status_code == 200
+    join_data = join_res.json()
+    assert join_data["status"] == "joined"
+    assert len(join_data["room"]["connected_devices"]) == 2
+
+    # 3. Chat in Teacher Bot Mode (Expert Educator)
+    chat_res = client.post(
+        f"/api/rooms/{room_code}/chat",
+        json={
+            "author_name": "Student",
+            "text": "How do we search in a balanced binary search tree?",
+            "user_code": ""
+        }
+    )
+    assert chat_res.status_code == 200
+    chat_data = chat_res.json()
+    assert chat_data["active_mode"] == "TEACHER"
+    assert chat_data["ai_message"]["author_name"] == "FocusMind Master Educator"
+    assert "Intuitive Analogy" in chat_data["ai_message"]["text"] or "Comprehension Check" in chat_data["ai_message"]["text"] or len(chat_data["ai_message"]["text"]) > 20
+
+    # 4. Toggle Mode to Feynman Student Mode (User becomes Teacher)
+    toggle_res = client.post(
+        f"/api/rooms/{room_code}/mode",
+        json={"new_mode": "STUDENT"}
+    )
+    assert toggle_res.status_code == 200
+    toggle_data = toggle_res.json()
+    assert toggle_data["active_mode"] == "STUDENT"
+    assert "Feynman" in toggle_data["room"]["chat_history"][-1]["text"]
+
+    # 5. Chat in Feynman Student Mode (AI asks clarifying questions & tests understanding)
+    feynman_res = client.post(
+        f"/api/rooms/{room_code}/chat",
+        json={
+            "author_name": "User-As-Teacher",
+            "text": "We use a hash map to get O(1) constant time lookup instead of scanning.",
+            "user_code": ""
+        }
+    )
+    assert feynman_res.status_code == 200
+    feynman_data = feynman_res.json()
+    assert feynman_data["active_mode"] == "STUDENT"
+    assert "Sam (Inquisitive Learner)" in feynman_data["ai_message"]["author_name"]
+    # Verify Feynman technique prompting (plain english, like I'm 10, or why it works)
+    assert any(term in feynman_data["ai_message"]["text"].lower() for term in ["10", "explain", "simply", "why", "how", "box", "lookup"])
+
+    # 6. Synchronize code across clients
+    code_res = client.post(
+        f"/api/rooms/{room_code}/code",
+        json={"code_content": "def bst_search(root, target): pass"}
+    )
+    assert code_res.status_code == 200
+    assert code_res.json()["shared_code"] == "def bst_search(root, target): pass"
+
