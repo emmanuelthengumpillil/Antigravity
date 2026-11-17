@@ -12,6 +12,40 @@
 
 ---
 
+## 🚀 Instructions to Run the Code (Quick Start)
+
+### Step 1: Install Git & Python
+Ensure Git and Python 3.11+ are installed on your system.
+
+### Step 2: Clone the Repository
+```bash
+git clone https://github.com/emmanuelthengumpillil/Antigravity
+```
+
+### Step 3: Navigate to Backend
+```bash
+cd Antigravity\backend
+```
+
+### Step 4: Install Dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### Step 5: Start the FocusMind Server
+```bash
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+Open your browser and navigate to **[http://127.0.0.1:8000](http://127.0.0.1:8000)** to experience the platform.
+
+### Step 6: Run Automated Tests
+```bash
+python -m pytest tests/test_backend.py
+```
+*(All 12 automated unit and integration tests execute and pass 100%).*
+
+---
+
 ## 🌟 Key Architecture & Capabilities
 
 ```
@@ -69,44 +103,16 @@
 
 ---
 
-## 🚀 Quick Start Guide
-
-### Prerequisites
-- Python 3.11+
-- Node.js 20+
-
-### 1. Launch the Backend
-```bash
-cd backend
-python -m venv venv
-# On Windows:
-venv\Scripts\activate
-# On Linux/macOS:
-source venv/bin/activate
-
-pip install -r requirements.txt
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-```
-Open [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser to experience the complete platform.
-
-### 2. Run Automated Test Suite
-```bash
-cd backend
-python -m pytest tests/test_backend.py
-```
-*(All 12 automated unit and integration tests execute and pass 100%).*
-
----
-
 ## 📂 Project Structure
 
 ```
 focusmind/
-├── README.md                           # Hackathon documentation
+├── README.md                           # Hackathon documentation & run instructions
 ├── backend/
 │   ├── app/
 │   │   ├── main.py                     # FastAPI application, WebSocket hub, AI tutoring
-│   │   └── models.py                   # Pydantic schemas (Rooms, Telemetry, Gemini Agent)
+│   │   ├── models.py                   # Pydantic schemas (Rooms, Telemetry, Gemini Agent)
+│   │   └── tutor_engine.py             # Socratic logic & Gemini API integration
 │   ├── static/
 │   │   ├── index.html                  # OLED black layout, Dynamic Island, Focus Canvas
 │   │   ├── styles.css                  # Tailwind styles & breathing animations
