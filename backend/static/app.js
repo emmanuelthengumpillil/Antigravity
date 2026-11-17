@@ -610,8 +610,12 @@ console.log(twoSum([2, 7, 11, 15], 9));
     const aura = document.getElementById('orb-ambient-aura');
     const resonator = document.getElementById('orb-resonator');
     const cadence = document.getElementById('orb-cadence-label');
-    const adaptiveText = document.getElementById('orb-adaptive-text');
+    const centerText = document.getElementById('orb-center-text');
     const flowHeader = document.getElementById('orb-flow-header');
+
+    if (centerText) {
+      centerText.textContent = 'FOCUS MIND';
+    }
 
     if (state === 'ENGAGED') {
       if (aura) aura.className = 'absolute w-72 h-72 rounded-full blur-[100px] transition-all duration-1000 pointer-events-none bg-emerald-500/20';
@@ -622,10 +626,6 @@ console.log(twoSum([2, 7, 11, 15], 9));
       if (cadence) {
         cadence.textContent = 'HIGH FLOW CADENCE';
         cadence.className = 'text-[9px] font-mono tracking-widest mt-0.5 text-emerald-300/70';
-      }
-      if (adaptiveText) {
-        adaptiveText.textContent = 'FLOW IMMERSION';
-        adaptiveText.className = 'text-xs md:text-sm font-semibold tracking-wider text-emerald-300 drop-shadow text-center transition-all duration-300';
       }
       if (flowHeader) flowHeader.className = 'text-[9px] font-mono tracking-[0.25em] uppercase text-emerald-400/80 mb-0.5';
     } else if (state === 'DROWSY' || state === 'SLEEPING') {
@@ -638,10 +638,6 @@ console.log(twoSum([2, 7, 11, 15], 9));
         cadence.textContent = 'RESTORATIVE BREATH';
         cadence.className = 'text-[9px] font-mono tracking-widest mt-0.5 text-amber-300/70';
       }
-      if (adaptiveText) {
-        adaptiveText.textContent = 'DEEP INHALE • RESET';
-        adaptiveText.className = 'text-xs md:text-sm font-semibold tracking-wider text-amber-300 drop-shadow text-center transition-all duration-300 animate-pulse';
-      }
       if (flowHeader) flowHeader.className = 'text-[9px] font-mono tracking-[0.25em] uppercase text-amber-400/80 mb-0.5';
     } else if (state === 'AWAY') {
       if (aura) aura.className = 'absolute w-72 h-72 rounded-full blur-[100px] transition-all duration-1000 pointer-events-none bg-zinc-600/20';
@@ -649,20 +645,12 @@ console.log(twoSum([2, 7, 11, 15], 9));
         cadence.textContent = 'PAUSED • STANDBY';
         cadence.className = 'text-[9px] font-mono tracking-widest mt-0.5 text-zinc-400';
       }
-      if (adaptiveText) {
-        adaptiveText.textContent = 'RESTING STANDBY';
-        adaptiveText.className = 'text-xs md:text-sm font-semibold tracking-wider text-zinc-400 drop-shadow text-center transition-all duration-300';
-      }
       if (flowHeader) flowHeader.className = 'text-[9px] font-mono tracking-[0.25em] uppercase text-zinc-400/80 mb-0.5';
     } else if (state === 'PRESENT') {
       if (aura) aura.className = 'absolute w-72 h-72 rounded-full blur-[100px] transition-all duration-1000 pointer-events-none bg-indigo-500/20';
       if (cadence) {
         cadence.textContent = 'STEADY BREATH';
         cadence.className = 'text-[9px] font-mono tracking-widest mt-0.5 text-indigo-300/70';
-      }
-      if (adaptiveText) {
-        adaptiveText.textContent = 'MINDFUL CALM';
-        adaptiveText.className = 'text-xs md:text-sm font-semibold tracking-wider text-indigo-300 drop-shadow text-center transition-all duration-300';
       }
       if (flowHeader) flowHeader.className = 'text-[9px] font-mono tracking-[0.25em] uppercase text-indigo-400/80 mb-0.5';
     } else {
@@ -674,10 +662,6 @@ console.log(twoSum([2, 7, 11, 15], 9));
       if (cadence) {
         cadence.textContent = 'CALM CADENCE';
         cadence.className = 'text-[9px] font-mono tracking-widest mt-0.5 text-cyan-300/60';
-      }
-      if (adaptiveText) {
-        adaptiveText.textContent = 'IN THE ZONE';
-        adaptiveText.className = 'text-xs md:text-sm font-semibold tracking-wider text-cyan-300 drop-shadow text-center transition-all duration-300';
       }
       if (flowHeader) flowHeader.className = 'text-[9px] font-mono tracking-[0.25em] uppercase text-cyan-400/80 mb-0.5';
     }

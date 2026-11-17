@@ -103,21 +103,9 @@ export default function DeepFocusOrb({
               FLOW STATE
             </span>
             
-            {/* Dynamic Adaptive Text in the centre (reflects real-time state of mind) */}
-            <span className="text-xs md:text-sm font-semibold tracking-wider text-white/95 drop-shadow text-center transition-all duration-300">
-              {adaptiveStateText || (
-                emotion === 'HAPPY' || emotion === 'EXCITED' || emotion === 'ENGAGED'
-                  ? 'FLOW IMMERSION'
-                  : emotion === 'ANXIOUS'
-                  ? 'DEEP RESET'
-                  : emotion === 'SAD'
-                  ? 'MINDFUL CALM'
-                  : emotion === 'AWAY'
-                  ? 'RESTING STANDBY'
-                  : emotion === 'DROWSY' || emotion === 'SLEEPING'
-                  ? 'POSTURE WAKEUP'
-                  : 'IN THE ZONE'
-              )}
+            {/* Center Text: FOCUS MIND */}
+            <span className="text-sm md:text-base font-bold tracking-[0.25em] text-white/95 drop-shadow text-center transition-all duration-300">
+              FOCUS MIND
             </span>
 
             <span className={`text-[9px] font-mono tracking-widest mt-0.5 ${auraStyles.textColor}`}>
